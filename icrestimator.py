@@ -156,10 +156,18 @@ class ICREstimator:
         :return: row vector expressing the point.
         """
         S = np.zeros(shape=(self.n_modules,))
-        for i in self.n_modules:
-            # equation 16 from paper
-            S[i] = math.atan2(column(self.a_orth, i).dot((lmda)) /
-                (column(self.a, i)-column(self.l_v, i)).dot(lmda))
+        lmda = lmda.T # computations require lambda as a row vector
+        for i in range(self.n_modules):
+            # equations 16 and 17 in the paper
+            a = column(self.a, i)
+            a_orth = column(self.a_orth, i)
+            l = column(self.l_v, i)
+            delta = lmda.dot(a-l)
+            omega = lmda.dot(a_orth)
+            norm = np.linalg.norm([delta, omega])
+            sin_beta = np.sign(delta) * omega / norm
+            cos_beta = np.sign(delta) * delta / norm
+            S[i] = math.atan2(sin_beta, cos_beta)
         return S
 
 
