@@ -122,7 +122,15 @@ class ICREstimator:
         :param lmda: position of the ICR estimate.
         :return: the free parameters in the form (delta_u, delta_v).
         """
-        return (0, 0)
+        a_u = S_u.dot(S_u)
+        a_c = S_u.dot(S_v)
+        a_v = S_v.dot(S_v)
+        A = np.array([[a_u, a_c], [a_c, a_v]])
+        p_zero = self.S(lmda)
+        diff = (q - p_zero).reshape((1, -1))
+        b = np.array([diff.dot(S_u.T), diff.dot(S_v.T)])
+        x = np.linalg.solve(A, b)
+        return x
 
     def update_parameters(self, lmda: np.ndarray, delta_u: float, delta_v: float):
         """
