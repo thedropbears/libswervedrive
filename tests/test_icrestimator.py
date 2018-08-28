@@ -6,7 +6,8 @@ def init_icre(alphas, ls, bs):
     alphas = np.array(alphas)
     ls = np.array(ls)
     bs = np.array(bs)
-    icre = ICREstimator(alphas, ls, bs, 20)
+    epsilon = np.zeros(shape=(3, 1))
+    icre = ICREstimator(epsilon, alphas, ls, bs)
     return icre
 
 def test_joint_space_conversion():

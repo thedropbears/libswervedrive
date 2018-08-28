@@ -3,25 +3,34 @@ import math
 
 
 class ICREstimator:
-    def __init__(self, modules_alpha: np.ndarray, modules_l: np.ndarray,
-                 modules_b: np.ndarray, max_iter: int):
+
+    # constants used in the lmda estimation algo
+    eta_lmda: float = 1e-3 # TODO: figure out what values this should be
+    eta_delta: float = 1e-3 # TODO: figure out what values this should be
+    max_iter = 3 # TODO: figure out what value should be
+
+    def __init__(self, epsilon_init: np.ndarray, modules_alpha: np.ndarray, modules_l: np.ndarray,
+                 modules_b: np.ndarray):
         """
         Initialize the ICREstimator object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
+        :param epsilon_init: the starting position estimate for the robot
+        position. Form (x, y, theta)^T.
         :param modules_alpha: array containing the angle to each of the modules,
         measured counter clockwise from the x-axis.
         :param modules_l: distance to the axis of rotation of each module from
         the origin of the chassis frame
         :param modules_b: distance from the axis of rotation of each module to
         it's contact with the ground.
-        :param max_iter: the maximum number of iterations for each starting
-        point before the next one is tried.
         """
+
+        self.epsilon = epsilon_init
+
         self.alpha = modules_alpha
         self.l = modules_l
         self.b = modules_b
         self.n_modules = len(self.alpha)
-        self.max_iter = max_iter
+        self.epsilon_init = epsilon_init
 
         self.a = np.zeros(shape=(3, self.n_modules))
         self.a_orth = np.zeros(shape=(3, self.n_modules))
@@ -39,18 +48,34 @@ class ICREstimator:
                                     1])
             self.l_v[:,i] = np.array([0, 0, self.l[i]])
 
+    def compute_odometry(self, lmda_e: np.ndarray, mu_e: float, delta_t: float):
+        """
+        Update our estimate of epsilon (twist position) based on the new ICR
+        estimate.
+        :param lmda_e: the estimate of the ICR in h-space.
+        :param mu_e: estimate of the position of the robot about the ICR.
+        :param delta_t: time since the odometry was last updated.
+        """
 
-    def estimate_icr(self, q: np.ndarray, eta_delta: float, eta_lmda: float):
+    def estimate_mu(self, phi_dot: np.ndarray, lmda_e):
+        """
+        Find the rotational position of the robot about the ICR.
+        :param phi_dot: array of angular velocities of the wheels.
+        :param lmda_e: the estimate of the ICR in h-space.
+        :return: the estimate of mu (float).
+        """
+        # this requires solving equation (22) from the control paper, i think
+        # we may need to look into whether this is valid for a system with no
+        # wheel coupling
+        return 0.
+
+    def estimate_lmda(self, q: np.ndarray):
         """
         Find the ICR given the steering angles.
         :param q: list of angles beta between representing the steer angle
         (measured relative to the orientation orthogonal to the line to the
         chassis frame origin.)
-        :param eta_delta: the threshold below which no further starting points
-        are considered and the ICR estimate is returned. Units of radians.
-        :param eta_lmda: the threshold below which the movement in the ICR
-        for one iteration indicates convergence of the algorithm.
-        :return: our istimate of ICR as the array (u, v, w)^T.
+        :return: our estimate of ICR as the array (u, v, w)^T.
         """
         starting_points = self.select_starting_points(q)
         found = False
@@ -61,7 +86,7 @@ class ICREstimator:
             if closest_lmda is None:
                 closest_lmda = lmda_start
                 closest_dist = np.linalg.norm(q - self.S(lmda_t))
-            if np.linalg.norm(q - self.S(lmda)) < eta_delta:
+            if np.linalg.norm(q - self.S(lmda)) < self.eta_delta:
                 found = True
             else:
                 for i in range(self.max_iter):
@@ -75,7 +100,7 @@ class ICREstimator:
                         found = False
                         break
                     else:
-                        found = np.linalg.norm(lmda - lmda_t) > eta_lmda
+                        found = np.linalg.norm(lmda - lmda_t) > self.eta_lmda
                         distance = np.linalg.norm(q - self.S(lmda_t))
                         if distance < closest_dist:
                             closest_lmda = lmda_t
