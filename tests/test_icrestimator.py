@@ -27,3 +27,50 @@ def test_solve():
     S_v = np.array([0, 0, 1])
     q = np.array([0, 0, 0])
     icre.solve(S_u, S_v, q, lmda)
+
+def test_compute_derivatives():
+    # for now, check only for runtime errors
+    icre = init_icre([math.pi/4, -math.pi/4, math.pi], [1, 1, 1], [0, 0, 0])
+    lmda = np.array([0, 0, -1]).reshape(-1, 1)
+    S_u, S_v = icre.compute_derivatives(lmda)
+
+def test_handle_singularities():
+    icre = init_icre([0, math.pi/2, math.pi], [1, 1, 1], [0, 0, 0])
+    # icr on wheel 0 on the R^2 plane
+    icr = np.array([1, 0, 1]).reshape(-1, 1)
+    lmda = icr * 1/np.linalg.norm(icr)
+    singularity, wheel_number = icre.handle_singularities(lmda)
+    assert singularity
+    assert wheel_number is 0
+    icr = np.array([100, 0, 1]).reshape(-1, 1)
+    lmda = icr * 1/np.linalg.norm(icr)
+    singularity, wheel_number = icre.handle_singularities(lmda)
+    assert not singularity
+    assert wheel_number is None
+
+def test_update_parameters():
+    icre = init_icre([0, math.pi/2, math.pi], [1, 1, 1], [0, 0, 0])
+    q = np.zeros(shape=(3,)) # ICR on the robot's origin
+    desired_lmda = np.array([0, 0, -1]).reshape(-1, 1)
+    u, v = -0.1, -0.1 # ICR estimate too negative
+    lmda_estimate = np.array([u, v,
+                              math.sqrt(1-np.linalg.norm([u, v]))]).reshape(-1, 1)
+    delta_u, delta_v = 0.1, 0.1
+    lmda_t, worse = icre.update_parameters(lmda_estimate, delta_u, delta_v,
+                                           q)
+    # ignore w coordinate in comparison due to antipodal points
+    assert np.allclose(lmda_t[:2], desired_lmda[:2])
+    assert not worse
+    delta_u, delta_v = -0.1, -0.1
+    lmda_t, worse = icre.update_parameters(lmda_estimate, delta_u, delta_v,
+                                           q)
+    assert worse
+
+def test_select_starting_points():
+    # TODO: make this test more than zero steering angles
+    icre = init_icre([0, math.pi/2, math.pi], [1, 1, 1], [0, 0, 0])
+    q = np.zeros(shape=(3,)) # ICR on the robot's origin
+    desired_lmda = np.array([0, 0, -1])
+    starting_points = icre.select_starting_points(q)
+    for sp in starting_points:
+        assert np.allclose(desired_lmda[:2], sp[:2])
