@@ -77,9 +77,14 @@ def test_select_starting_points():
     desired_lmda = icr * 1/np.linalg.norm(icr)
     starting_points = icre.select_starting_points(q)
     assert np.allclose(desired_lmda[:2], starting_points[0][:2])
+    # should have unit norm
+    for sp in starting_points:
+        assert np.isclose(np.linalg.norm(sp), 1)
     # driving along the y axis
     q = np.array([0, math.pi/2, 0])
     # so the ICR should be on the U axis
     desired_lmda = np.array([1, 0, 0]).reshape(-1, 1)
     starting_points = icre.select_starting_points(q)
     assert np.allclose(desired_lmda[:2], (starting_points[0][:2]))
+    for sp in starting_points:
+        assert np.isclose(np.linalg.norm(sp), 1)

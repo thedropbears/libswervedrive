@@ -150,6 +150,7 @@ class ICREstimator:
                     continue
                 p_2 = get_p(j)
                 c = np.cross(p_1, p_2)
+                c = c / np.linalg.norm(c)
                 if c[2] < 0:
                     c = -c
                 dist = np.linalg.norm(q-self.S(c))
