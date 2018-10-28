@@ -10,6 +10,33 @@ def init_icre(alphas, ls, bs):
     icre = ICREstimator(epsilon, alphas, ls, bs)
     return icre
 
+def test_estimate_lambda():
+    icre = init_icre([0, math.pi/2, math.pi], [1, 1, 1], [0, 0, 0])
+    q = np.zeros(shape=(3,)) # ICR on the robot's origin
+    desired_lmda = np.array([0, 0, 1])
+    lmda_e = icre.estimate_lmda(q)
+    assert np.allclose(desired_lmda, lmda_e.T)
+    q = np.array([math.pi/4, 0, -math.pi/4])
+    icr = np.array([0, -1, 1])
+    desired_lmda = icr * 1/np.linalg.norm(icr)
+    lmda_e = icre.estimate_lmda(q)
+    assert np.allclose(desired_lmda, lmda_e.T)
+    # driving along the y axis
+    q = np.array([0, math.pi/2, 0])
+    # so the ICR should be on the U axis
+    desired_lmda = np.array([1, 0, 0])
+    lmda_e = icre.estimate_lmda(q)
+    assert np.allclose(desired_lmda, lmda_e.T)
+    alpha = math.atan2(0.31, 0.25)
+    alphas = [alpha, math.pi-alpha, -math.pi+alpha, -alpha]
+    icre = init_icre(alphas, [0.39]*4, [0, 0, 0, 0])
+    # test case from the simulator
+    q  = np.array([6.429e-04, -6.429e-04, 3.1422, 3.1409])
+    desired_lmda = np.array([0, 0, 1])
+    lmda_e = icre.estimate_lmda(q)
+    assert np.allclose(desired_lmda, lmda_e.T, atol=0.05)
+
+
 def test_joint_space_conversion():
     icre = init_icre([math.pi/4], [1], [0])
     lmda = np.array([0, 0, -1]).reshape(-1, 1)
@@ -51,14 +78,14 @@ def test_handle_singularities():
 def test_update_parameters():
     icre = init_icre([0, math.pi/2, math.pi], [1, 1, 1], [0, 0, 0])
     q = np.zeros(shape=(3,)) # ICR on the robot's origin
-    desired_lmda = np.array([0, 0, 1]).reshape(-1, 1)
+    desired_lmda = np.array([0, 0, 1])
     u, v = -0.1, -0.1 # ICR estimate too negative
     lmda_estimate = np.array([u, v,
                               math.sqrt(1-np.linalg.norm([u, v]))]).reshape(-1, 1)
     delta_u, delta_v = 0.1, 0.1
     lmda_t, worse = icre.update_parameters(lmda_estimate, delta_u, delta_v,
                                            q)
-    assert np.allclose(lmda_t, desired_lmda)
+    assert np.allclose(lmda_t.T, desired_lmda)
     assert not worse
     delta_u, delta_v = -0.1, -0.1
     lmda_t, worse = icre.update_parameters(lmda_estimate, delta_u, delta_v,
@@ -88,3 +115,16 @@ def test_select_starting_points():
     assert np.allclose(desired_lmda[:2], (starting_points[0][:2]))
     for sp in starting_points:
         assert np.isclose(np.linalg.norm(sp), 1)
+    # test case from the simulator
+    alpha = math.atan2(0.31, 0.25)
+    alphas = [alpha, math.pi-alpha, -math.pi+alpha, -alpha]
+    icre = init_icre(alphas, [0.39]*4, [0, 0, 0, 0])
+    q  = np.array([6.429e-04, -6.429e-04, 3.1422, 3.1409])
+    desired_lmda = np.array([0, 0, 1])
+    sp = icre.select_starting_points(q)
+    close=[]
+    for p in sp:
+        close.append(np.allclose(desired_lmda, p.T, atol=0.05))
+    assert any(close)
+    print(f'Close {close}')
+    assert False

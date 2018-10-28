@@ -5,10 +5,10 @@ import math
 class ICREstimator:
 
     # constants used in the lmda estimation algo
-    eta_lmda: float = 1e-3 # TODO: figure out what values this should be
-    eta_delta: float = 1e-3 # TODO: figure out what values this should be
+    eta_lmda: float = 1e-4 # TODO: figure out what values this should be
+    eta_delta: float = 1e-2 # TODO: figure out what values this should be
     min_delta_size: float = 1e-3 # TODO: figure out what value this should be
-    max_iter = 3 # TODO: figure out what value should be
+    max_iter = 50 # TODO: figure out what value should be
 
     def __init__(self, epsilon_init: np.ndarray, modules_alpha: np.ndarray, modules_l: np.ndarray,
                  modules_b: np.ndarray):
@@ -32,6 +32,7 @@ class ICREstimator:
         self.b = modules_b
         self.n_modules = len(self.alpha)
         self.epsilon_init = epsilon_init
+        print(f'Real controller ICR Initialised.\nalpha {self.alpha}\nl{self.l}\nb{self.b}')
 
         self.a = np.zeros(shape=(3, self.n_modules))
         self.a_orth = np.zeros(shape=(3, self.n_modules))
@@ -78,11 +79,13 @@ class ICREstimator:
         chassis frame origin.)
         :return: our estimate of ICR as the array (u, v, w)^T.
         """
+        print(f'Estimate_lmda started q_in {q}')
         starting_points = self.select_starting_points(q)
         found = False
         closest_lmda = None
         closest_dist = None
         for lmda_start in starting_points:
+            print(f"iterate over sp, starting dist {np.linalg.norm(q - self.S(lmda_start))}")
             lmda = lmda_start
             if closest_lmda is None:
                 closest_lmda = lmda_start
@@ -99,7 +102,7 @@ class ICREstimator:
                         S_u[last_singularity] = 0
                         S_v[last_singularity] = 0
                     (delta_u, delta_v) = self.solve(S_u, S_v, q, lmda)
-                    lmda_t, worse = self.update_parameters(lmda, delta_u, delta_v, q)
+                    lmda_t, worse = self.update_parameters(lmda, delta_u/10, delta_v/10, q)
                     singularity, singularity_number = self.handle_singularities(lmda_t)
                     S_lmda = self.S(lmda_t)
                     if last_singularity is not None and singularity:
@@ -111,15 +114,19 @@ class ICREstimator:
                     if np.linalg.norm(q - S_lmda) > np.linalg.norm(q - self.S(lmda_start)):
                         # appears the algorithm has diverged as we are not
                         # improving
+                        print('Diverge')
                         found = False
                         break
                     else:
-                        found = np.linalg.norm(lmda - lmda_t) > self.eta_lmda
+                        found = np.linalg.norm(lmda - lmda_t) < self.eta_lmda
                         distance = np.linalg.norm(q - S_lmda)
+                        print(f'Found {found} Distance {distance}')
                         if distance < closest_dist:
                             closest_lmda = lmda_t
                             closest_dist = distance
                     lmda = lmda_t
+                    if found:
+                        break
             if found:
                 return lmda
         return closest_lmda
