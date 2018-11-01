@@ -35,4 +35,13 @@ class PathPlanner:
         :param k_b: Backtracking constant.
         :return: (derivative of lmda, 2nd derivative of lmda, derivative of mu)
         """
-        return np.zeros(shape=(3, 1)), np.zeros(shape=(3, 1)), 0
+
+        dlmda = k_b * self.k_lmda * (lmda_d - (lmda_e.dot(lmda_d)) * lmda_e)
+
+        d2lmda = k_b ** 2 * self.k_lmda ** 2 * ((lmda_e.dot(lmda_d)) * lmda_d - lmda_e)
+
+        dmu = k_b * self.k_mu * (mu_d-mu_e)
+
+        return dlmda, d2lmda, dmu
+
+        # return np.zeros(shape=(3, 1)), np.zeros(shape=(3, 1)), 0
