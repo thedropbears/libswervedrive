@@ -17,7 +17,7 @@ class ICRController:
     symbol in the paper. d2 or 2dot indicates second derivative.
     """
     def __init__(self, modules_alpha: np.ndarray, modules_l: np.ndarray,
-                 modules_b: np.ndarray, epsilon_init: np.ndarray, beta_bounds: List,
+                 modules_b: np.ndarray, modules_r: List, epsilon_init: np.ndarray, beta_bounds: List,
                  beta_dot_bounds: List, beta_2dot_bounds: List,
                  phi_dot_bounds: List, phi_2dot_bounds: List):
         """
@@ -43,14 +43,16 @@ class ICRController:
         self.alpha = modules_alpha
         self.l = modules_l
         self.b = modules_b
+        self.r = modules_r
         self.n_modules = len(self.alpha)
+
         self.icre = ICREstimator(epsilon_init, self.alpha, self.l, self.b)
 
         self.path_planner = PathPlanner(self.alpha, self.l, phi_dot_bounds,
                                         k_lmda=1, k_mu=1)
         self.kinematic_model = KinematicModel(self.alpha, self.l, self.b, k_beta=1)
         self.scaler = TimeScaler(beta_dot_bounds, beta_2dot_bounds, phi_2dot_bounds)
-        self.integrator = MotionIntegrator(beta_bounds, phi_dot_bounds)
+        self.integrator = MotionIntegrator(beta_bounds, phi_dot_bounds, self.b, self.r)
 
     def control_step(self, modules_beta: np.ndarray, modules_phi_dot: np.ndarray,
                      lmda_d: np.ndarray, mu_d: float, delta_t: float):
@@ -85,8 +87,8 @@ class ICRController:
         s_dot, s_2dot = self.scaler.compute_scaling_parameters(s_dot_l, s_dot_u, s_2dot_l, s_2dot_u)
         beta_dot, beta_2dot, phi_2dot_p = self.scaler.scale_motion(dbeta, d2beta, dphi_dot_p, s_dot, s_2dot)
 
-        beta_c, phi_c = self.integrator.integrate_motion(beta_dot, beta_2dot, phi_dot_p, phi_2dot_p, delta_t)
+        beta_c, phi_dot_c = self.integrator.integrate_motion(beta_dot, beta_2dot, phi_dot_p, phi_2dot_p, delta_t)
 
-        return beta_c, phi_c
+        return beta_c, phi_dot_c, xi_e
 
         # return np.zeros(shape=(self.n_modules,)), np.zeros(shape=(self.n_modules,))
