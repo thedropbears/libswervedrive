@@ -30,7 +30,26 @@ class TimeScaler:
         :return: upper and lower scaling bounds for derivative of s and second
         derivative of s: ds_lower, ds_upper, d2s_lower, d2s_upper.
         """
-        return 0., 1., 0., 1.
+
+        lower_36a = min( self.beta_dot_bounds ) / dbeta
+        upper_36a = max( self.beta_dot_bounds ) / dbeta
+
+        lower_36c = min( self.phi_2dot_bounds ) / dphi_dot
+        upper_36c = max( self.phi_2dot_bounds ) / dphi_dot
+
+        ds_lower = max( lower_36a , lower_36c )
+        ds_upper = min( upper_36a , upper_36c )
+
+        lower_36b_lower = ( min( self.beta_2dot_bounds ) - ( d2beta * ds_lower ** 2 ) ) / dbeta
+        lower_36b_upper = ( min( self.beta_2dot_bounds ) - ( d2beta * ds_upper ** 2 ) ) / dbeta
+
+        upper_36b_lower = ( max( self.beta_2dot_bounds ) - ( d2beta * ds_lower ** 2 ) ) / dbeta
+        upper_36b_upper = ( max( self.beta_2dot_bounds ) - ( d2beta * ds_upper ** 2 ) ) / dbeta
+
+        d2s_lower = min( lower_36b_lower, lower_36b_upper )
+        d2s_upper = max( upper_36b_lower, upper_36b_upper )
+        
+        return ds_lower, ds_upper, d2s_lower, d2s_upper
 
     def compute_scaling_parameters(self, ds_lower: float, ds_upper: float,
                                    d2s_lower: float, d2s_upper: float):
