@@ -27,7 +27,7 @@ def test_estimate_lambda():
     desired_lmda = np.array([1, 0, 0])
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e.T)
-    alpha = math.pi/4
+    alpha = math.pi / 4
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
     icre = init_icre(alphas, [1] * 4, [0, 0, 0, 0])
     # test case from the simulator
@@ -35,13 +35,25 @@ def test_estimate_lambda():
     desired_lmda = np.array([0, 0, 1])
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e.T, atol=0.05)
-    # ICR on the wheel
-    alpha = math.pi/4 # 45 degrees
+    # ICR on a wheel
+    alpha = math.pi / 4  # 45 degrees
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
     icre = init_icre(alphas, [1] * 4, [0] * 4)
-    q = np.array([- math.pi/4, 0, math.pi/4, 0])
-    desired_lmda = np.array([-0.5, 0.5, 1/math.sqrt(2)])
+    q = np.array([-math.pi / 4, 0, math.pi / 4, 0])
+    desired_lmda = np.array([-0.5, 0.5, 1 / math.sqrt(2)])
     lmda_e = icre.estimate_lmda(q)
+    print(f"estimated ICR = {icre.estimate_lmda(q)}")
+    assert np.allclose(desired_lmda, lmda_e.T, atol=0.05)
+    # ICR on one side of the robot frame
+    # Failing
+    alpha = math.pi / 4  # 45 degrees
+    alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
+    icre = init_icre(alphas, [1] * 4, [0] * 4)
+    q = np.array([math.acos(1.25 / 3), math.pi / 4, -math.pi / 4, -math.acos(1.25 / 3)])
+    icr = np.array([-math.sqrt(2), 0, 1])
+    desired_lmda = icr * 1 / np.linalg.norm(icr)
+    lmda_e = icre.estimate_lmda(q)
+    # print(f"estimated ICR = {lmda_e.T}")
     assert np.allclose(desired_lmda, lmda_e.T, atol=0.05)
 
 
@@ -124,7 +136,7 @@ def test_select_starting_points():
     for sp in starting_points:
         assert np.isclose(np.linalg.norm(sp), 1)
     # test case from the simulator
-    alpha = math.pi/4
+    alpha = math.pi / 4
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
     icre = init_icre(alphas, [1] * 4, [0, 0, 0, 0])
     q = np.array([6.429e-04, -6.429e-04, 3.1422, 3.1409])
@@ -140,10 +152,10 @@ def test_select_starting_points():
 
 def test_flip_wheel():
     # S_lmda on robot origin
-    alpha = math.pi/4 # 45 degrees
+    alpha = math.pi / 4  # 45 degrees
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
-    q = np.array([2 * math.pi, 7 * math.pi, math.pi/2, math.pi])
+    q = np.array([2 * math.pi, 7 * math.pi, math.pi / 2, math.pi])
     icre = init_icre(alphas, [1] * 4, q)
     S_lmda = np.array([0] * 4)
-    assert all(icre.flip_wheel(q, S_lmda) == np.array([0, 0, math.pi/2, 0]))
+    assert all(icre.flip_wheel(q, S_lmda) == np.array([0, 0, math.pi / 2, 0]))
     assert icre.flipped == [False, True, False, True]
