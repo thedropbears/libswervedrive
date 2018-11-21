@@ -27,12 +27,20 @@ def test_estimate_lambda():
     desired_lmda = np.array([1, 0, 0])
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e.T)
-    alpha = math.atan2(0.31, 0.25)
-    alphas = [alpha, math.pi-alpha, -math.pi+alpha, -alpha]
-    icre = init_icre(alphas, [0.39]*4, [0, 0, 0, 0])
+    alpha = math.pi/4
+    alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
+    icre = init_icre(alphas, [1] * 4, [0, 0, 0, 0])
     # test case from the simulator
-    q  = np.array([6.429e-04, -6.429e-04, 3.1422, 3.1409])
+    q = np.array([6.429e-04, -6.429e-04, 3.1422, 3.1409])
     desired_lmda = np.array([0, 0, 1])
+    lmda_e = icre.estimate_lmda(q)
+    assert np.allclose(desired_lmda, lmda_e.T, atol=0.05)
+    # ICR on the wheel
+    alpha = math.pi/4 # 45 degrees
+    alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
+    icre = init_icre(alphas, [1] * 4, [0] * 4)
+    q = np.array([- math.pi/4, 0, math.pi/4, 0])
+    desired_lmda = np.array([-0.5, 0.5, 1/math.sqrt(2)])
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e.T, atol=0.05)
 
