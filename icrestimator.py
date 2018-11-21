@@ -86,12 +86,14 @@ class ICREstimator:
         closest_lmda = None
         closest_dist = None
         for lmda_start in starting_points:
-            print(f"iterate over sp, starting dist {np.linalg.norm(q - self.S(lmda_start))}")
+            print(
+                f"iterate over sp, starting dist {np.linalg.norm(self.flip_wheel(q, self.S(lmda_start)))}"
+            )
             lmda = lmda_start
             if closest_lmda is None:
                 closest_lmda = lmda_start
-                closest_dist = np.linalg.norm(q - self.S(lmda_start))
-            if np.linalg.norm(q - self.S(lmda)) < self.eta_delta:
+                closest_dist = np.linalg.norm(self.flip_wheel(q, self.S(lmda_start)))
+            if np.linalg.norm(self.flip_wheel(q, self.S(lmda))) < self.eta_delta:
                 found = True
             else:
                 last_singularity = None
@@ -112,7 +114,9 @@ class ICREstimator:
                         # value
                         S_lmda[last_singularity] = q[last_singularity]
                     last_singularity = singularity_number
-                    if np.linalg.norm(q - S_lmda) > np.linalg.norm(q - self.S(lmda_start)):
+                    if np.linalg.norm(self.flip_wheel(q, S_lmda)) > np.linalg.norm(
+                        q - self.S(lmda_start)
+                    ):
                         # appears the algorithm has diverged as we are not
                         # improving
                         print('Diverge')
@@ -120,8 +124,8 @@ class ICREstimator:
                         break
                     else:
                         found = np.linalg.norm(lmda - lmda_t) < self.eta_lmda
-                        distance = np.linalg.norm(q - S_lmda)
-                        print(f'Found {found} Distance {distance}')
+                        distance = np.linalg.norm(self.flip_wheel(q, S_lmda))
+                        print(f"Found {found} Distance {distance}")
                         if distance < closest_dist:
                             closest_lmda = lmda_t
                             closest_dist = distance
