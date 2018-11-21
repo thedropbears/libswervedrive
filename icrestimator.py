@@ -5,10 +5,11 @@ import math
 class ICREstimator:
 
     # constants used in the lmda estimation algo
-    eta_lmda: float = 1e-4 # TODO: figure out what values this should be
-    eta_delta: float = 1e-2 # TODO: figure out what values this should be
-    min_delta_size: float = 1e-3 # TODO: figure out what value this should be
-    max_iter = 50 # TODO: figure out what value should be
+    eta_lmda: float = 1e-4  # TODO: figure out what values this should be
+    eta_delta: float = 1e-2  # TODO: figure out what values this should be
+    min_delta_size: float = 1e-3  # TODO: figure out what value this should be
+    max_iter = 50  # TODO: figure out what value should be
+    tolerance: float = 1e-3
 
     def __init__(self, epsilon_init: np.ndarray, modules_alpha: np.ndarray, modules_l: np.ndarray,
                  modules_b: np.ndarray):
@@ -151,9 +152,12 @@ class ICREstimator:
 
         def get_p(i):
             s = column(self.s, i).reshape(-1)
-            d = s + np.array([math.cos(q[i] + self.alpha[i]),
-                              math.sin(q[i] + self.alpha[i]), 0])
-            return np.cross(s, d)
+            d = np.array(
+                [math.cos(q[i] + self.alpha[i]), math.sin(q[i] + self.alpha[i]), 0]
+            )
+            p = np.cross(s, d)
+            p /= np.linalg.norm(p)
+            return p
 
         for i in range(self.n_modules):
             p_1 = get_p(i)
@@ -161,18 +165,15 @@ class ICREstimator:
                 if not i > j:
                     continue
                 p_2 = get_p(j)
-                print(f"p_1 = {p_1}\np_2 = {p_2}")
-                # p_2_test = np.array([-p_2[0],p_2[1],-p_2[2]])
-                # if p_1.dot(p_2_test) == np.linalg.norm(p_1)*np.linalg.norm(p_2_test):
-                #     print(f"wheels {i} and {j} are co-linear")
-                #     continue
                 c = np.cross(p_1, p_2)
-                if np.linalg.norm(c)/(np.linalg.norm(p_1)*np.linalg.norm(p_2)) < 1e-3:
+                if np.linalg.norm(c) / (np.linalg.norm(p_1) * np.linalg.norm(p_2)) == 1:
+                    # Throwout cases where the two wheels being compared are co-linear
+                    print(f"wheels {i} and {j} are co-linear")
                     continue
-                c = c / np.linalg.norm(c)
+                c /= np.linalg.norm(c)
                 if c[2] < 0:
                     c = -c
-                dist = np.linalg.norm(q-self.S(c))
+                dist = np.linalg.norm(self.flip_wheel(q, self.S(c)))
                 starting_points.append([c, dist])
         starting_points.sort(key=lambda point: point[1])
         sp_arr = [p[0].reshape(3, 1) for p in starting_points]
@@ -257,7 +258,9 @@ class ICREstimator:
         worse = False
         # while the algorithm produces a worse than or equal to good estimate
         # for q on the surface as lmda from the previous iteration
-        while np.linalg.norm(q - self.S(lmda)) <= np.linalg.norm(q - self.S(lmda_t)):
+        while np.linalg.norm(self.flip_wheel(q, self.S(lmda))) <= np.linalg.norm(
+            self.flip_wheel(q, self.S(lmda_t))
+        ):
             # set a minimum step size to avoid infinite recursion
             if np.linalg.norm([delta_u, delta_v]) < self.min_delta_size:
                 worse = True
@@ -327,20 +330,20 @@ class ICREstimator:
         :param q: an array representing all of the current beta angles
         :parem S_lmda: an array of all the beta angles required to achieve a desired ICR
         :return: an array of the same length as the input arrays with each component
-        as either zero if the wheel was 'flipped' or the difference between q and S_lmda
-        if it was not. This is done to prevent an 'out by pi' issue where q and S_lmda would not converge.
+        as the correct distance of q from S_lmda.
+        This is done to prevent an 'out by pi' issue where q and S_lmda would not converge.
+        We also track the number of times each wheel has been flipped to ensure that it drives
+        in the correct direction, True indicates drive direction should be reversed.
         """
         output = np.array([None] * self.n_modules)
         for module in range(self.n_modules):
-            if (q[module] - S_lmda[module]) % math.pi == 0:
-                # if the remainder of q-S_lmda is 0 i.e. it is a multiple of pi
-                if ((q[module] - S_lmda[module]) / math.pi) % 2 == 0:
-                    self.flipped[module] = False
-                else:
-                    self.flipped[module] = True
-                output[module] = 0
+            dif = q[module] - S_lmda[module]
+            output[module] = math.atan(math.sin(dif) / math.cos(dif))
+            absolute_direction = math.atan2(math.sin(dif), math.cos(dif))
+            if abs(output[module] - absolute_direction) > self.tolerance:
+                self.flipped[module] = True
             else:
-                output[module] = q[module] - S_lmda[module]
+                self.flipped[module] = False
         return output
 
 
@@ -350,4 +353,4 @@ def column(mat, row_i):
     :param row_i: row index
     :return: the column vector (shape (n, 1))
     """
-    return mat[:,row_i:row_i+1]
+    return mat[:, row_i : row_i + 1]
