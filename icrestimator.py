@@ -115,7 +115,7 @@ class ICREstimator:
                         S_lmda[last_singularity] = q[last_singularity]
                     last_singularity = singularity_number
                     if np.linalg.norm(self.flip_wheel(q, S_lmda)) > np.linalg.norm(
-                        q - self.S(lmda_start)
+                        self.flip_wheel(q, self.S(lmda_start))
                     ):
                         # appears the algorithm has diverged as we are not
                         # improving
@@ -161,7 +161,14 @@ class ICREstimator:
                 if not i > j:
                     continue
                 p_2 = get_p(j)
+                print(f"p_1 = {p_1}\np_2 = {p_2}")
+                # p_2_test = np.array([-p_2[0],p_2[1],-p_2[2]])
+                # if p_1.dot(p_2_test) == np.linalg.norm(p_1)*np.linalg.norm(p_2_test):
+                #     print(f"wheels {i} and {j} are co-linear")
+                #     continue
                 c = np.cross(p_1, p_2)
+                if np.linalg.norm(c)/(np.linalg.norm(p_1)*np.linalg.norm(p_2)) < 1e-3:
+                    continue
                 c = c / np.linalg.norm(c)
                 if c[2] < 0:
                     c = -c
@@ -315,6 +322,8 @@ class ICREstimator:
 
     def flip_wheel(self, q: np.ndarray, S_lmda: np.ndarray):
         """
+        Determine if the wheel is either already facing the desired direction or is out by pi,
+        in both cases the wheel does not have to turn.
         :param q: an array representing all of the current beta angles
         :parem S_lmda: an array of all the beta angles required to achieve a desired ICR
         :return: an array of the same length as the input arrays with each component
