@@ -49,6 +49,7 @@ class ICREstimator:
                                     self.l[i]*math.sin(self.alpha[i]),
                                     1])
             self.l_v[:,i] = np.array([0, 0, self.l[i]])
+        self.flipped = [None] * len(n_modules)
 
     def compute_odometry(self, lmda_e: np.ndarray, mu_e: float, delta_t: float):
         """
@@ -307,6 +308,27 @@ class ICREstimator:
             cos_beta = np.sign(delta) * delta / norm
             S[i] = math.atan2(sin_beta, cos_beta)
         return S
+
+    def flip_wheel(self, q: np.ndarray, S_lmda: np.ndarray):
+        """
+        :param q: an array representing all of the current beta angles
+        :parem S_lmda: an array of all the beta angles required to achieve a desired ICR
+        :return: an array of the same length as the input arrays with each component
+        as either zero if the wheel was 'flipped' or the difference between q and S_lmda
+        if it was not. This is done to prevent an 'out by pi' issue where q and S_lmda would not converge.
+        """
+        output = np.array([None] * self.n_modules)
+        for module in range(self.n_modules):
+            if (q[module] - S_lmda[module]) % math.pi == 0:
+                # if the remainder of q-S_lmda is 0 i.e. it is a multiple of pi
+                if ((q[module] - S_lmda[module]) / math.pi) % 2 == 0:
+                    self.flipped[module] = False
+                else:
+                    self.flipped[module] = True
+                output[module] = 0
+            else:
+                output[module] = q[module] - S_lmda[module]
+        return output
 
 
 def column(mat, row_i):
