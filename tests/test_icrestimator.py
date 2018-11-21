@@ -228,7 +228,7 @@ def test_flip_wheel():
         np.linalg.norm(icre.flip_wheel(q, S_lmda) - np.array([0, 0, math.pi / 2, 0]))
         < tolerance
     )
-    assert icre.flipped == [False, True, False, True]
+    assert all(icre.flipped == [False, True, False, True])
 
     q = np.array([-2 * math.pi, -7 * math.pi, -math.pi / 2, -math.pi])
     S_lmda = np.array([0] * 4)
@@ -236,4 +236,4 @@ def test_flip_wheel():
         np.linalg.norm(icre.flip_wheel(q, S_lmda) - np.array([0, 0, -math.pi / 2, 0]))
         < tolerance
     )
-    assert icre.flipped == [False, True, False, True]
+    assert all(icre.flipped == [False, True, False, True])

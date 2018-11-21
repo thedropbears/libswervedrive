@@ -50,7 +50,7 @@ class ICREstimator:
                                     self.l[i]*math.sin(self.alpha[i]),
                                     1])
             self.l_v[:,i] = np.array([0, 0, self.l[i]])
-        self.flipped = [None] * len(n_modules)
+        self.flipped = [None] * self.n_modules
 
     def compute_odometry(self, lmda_e: np.ndarray, mu_e: float, delta_t: float):
         """
@@ -335,15 +335,10 @@ class ICREstimator:
         We also track the number of times each wheel has been flipped to ensure that it drives
         in the correct direction, True indicates drive direction should be reversed.
         """
-        output = np.array([None] * self.n_modules)
-        for module in range(self.n_modules):
-            dif = q[module] - S_lmda[module]
-            output[module] = math.atan(math.sin(dif) / math.cos(dif))
-            absolute_direction = math.atan2(math.sin(dif), math.cos(dif))
-            if abs(output[module] - absolute_direction) > self.tolerance:
-                self.flipped[module] = True
-            else:
-                self.flipped[module] = False
+        dif = q - S_lmda
+        output = np.arctan(np.sin(dif) / np.cos(dif))
+        absolute_direction = np.arctan2(np.sin(dif), np.cos(dif))
+        self.flipped = np.where(abs(output - absolute_direction) > self.tolerance, True, False)
         return output
 
 
