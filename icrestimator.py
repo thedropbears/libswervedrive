@@ -336,8 +336,10 @@ class ICREstimator:
         in the correct direction, True indicates drive direction should be reversed.
         """
         dif = q - S_lmda
-        output = np.arctan(np.sin(dif) / np.cos(dif))
-        absolute_direction = np.arctan2(np.sin(dif), np.cos(dif))
+        dif_sin = np.sin(dif)
+        dif_cos = np.cos(dif)
+        output = np.arctan(dif_sin / dif_cos)
+        absolute_direction = np.arctan2(dif_sin, dif_cos)
         self.flipped = np.where(abs(output - absolute_direction) > self.tolerance, True, False)
         return output
 
