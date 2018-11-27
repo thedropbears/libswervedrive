@@ -166,7 +166,8 @@ class ICREstimator:
                     continue
                 p_2 = get_p(j)
                 c = np.cross(p_1, p_2)
-                if np.linalg.norm(c) / (np.linalg.norm(p_1) * np.linalg.norm(p_2)) == 1:
+                if if p_1.dot(p_2) / np.linalg.norm(p_1) * np.linalg.norm(p_2) == 1:
+                    # the sine of the dot product is zero i.e. they are co-linear:
                     # Throwout cases where the two wheels being compared are co-linear
                     print(f"wheels {i} and {j} are co-linear")
                     continue
@@ -176,6 +177,8 @@ class ICREstimator:
                 dist = np.linalg.norm(self.flip_wheel(q, self.S(c)))
                 starting_points.append([c, dist])
         starting_points.sort(key=lambda point: point[1])
+        for sp in range(len(starting_points)):
+            print(f"starting point {starting_points[sp]}")
         sp_arr = [p[0].reshape(3, 1) for p in starting_points]
         return sp_arr
 
@@ -315,12 +318,11 @@ class ICREstimator:
             a = column(self.a, i)
             a_orth = column(self.a_orth, i)
             l = column(self.l_v, i)
-            delta = lmda.dot(a-l)
-            omega = lmda.dot(a_orth)
-            norm = np.linalg.norm([delta, omega])
-            sin_beta = np.sign(delta) * omega / norm
-            cos_beta = np.sign(delta) * delta / norm
-            S[i] = math.atan2(sin_beta, cos_beta)
+            # fix for the out by pi issue, basically the flip-wheel function below
+            S[i] = math.atan2(lmda.dot(a_orth),lmda.dot(a-l))
+            dif_sin = math.sin(S[i])
+            dif_cos = math.cos(S[i])
+            S[i] = np.arctan(dif_sin / dif_cos)
         return S
 
     def flip_wheel(self, q: np.ndarray, S_lmda: np.ndarray):
@@ -339,6 +341,7 @@ class ICREstimator:
         dif_sin = np.sin(dif)
         dif_cos = np.cos(dif)
         output = np.arctan(dif_sin / dif_cos)
+        output[np.isnan(output)] = math.pi/2
         absolute_direction = np.arctan2(dif_sin, dif_cos)
         self.flipped = np.where(abs(output - absolute_direction) > self.tolerance, True, False)
         return output

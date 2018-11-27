@@ -60,20 +60,27 @@ def test_estimate_lambda():
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
     icre = init_icre(alphas, [math.sqrt(2)] * 4, [0] * 4)
     # ICR on one side of the robot frame
-    # Failing
     q = np.array(
         [
-            -math.acos(6 / (2 * math.sqrt(10))),
-            -math.pi / 4,
-            math.pi / 4,
             math.acos(6 / (2 * math.sqrt(10))),
+            math.pi / 4,
+            -math.pi / 4,
+            -math.acos(6 / (2 * math.sqrt(10))),
         ]
     )
-    icr = np.array([-1, 0, 1])
+    icr = np.array([0, -1, 1])
     desired_lmda = icr * 1 / np.linalg.norm(icr)
     lmda_e = icre.estimate_lmda(q)
     print(f"estimated ICR = {lmda_e.T}")
     assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
+
+    # # afaik this is the worst case scenario, 2 wheel singularities and a co-linear singularity
+    # q = np.array([-math.pi/4, math.pi/4, math.pi/4, -math.pi/4])
+    # icr = np.array([0.5, 0.5, 1/math.sqrt(2)])
+    # desired_lmda = icr * 1 / np.linalg.norm(icr)
+    # lmda_e = icre.estimate_lmda(q)
+    # # print(f"norm of estimate - {np.linalg.norm(lmda_e)}")
+    # assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
 
 
 def test_joint_space_conversion():
