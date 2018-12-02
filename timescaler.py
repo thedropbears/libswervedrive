@@ -48,7 +48,7 @@ class TimeScaler:
         self.d2s = 1.
 
     def scale_motion(self, dbeta: np.ndarray, d2beta: np.ndarray,
-                     dphi_dot: np.ndarray):
+                     dphi_dot: np.ndarray, s_dot, s_2dot):
         """
         Scale the actuators' motion using the scaling bounds.
         :param dbeta: command for derivative of the angle of the modules.
@@ -57,5 +57,9 @@ class TimeScaler:
         module wheels.
         :return: *time* derivatives of actuators motion beta_dot, beta_2dot, phi_2dot
         """
-        return (np.zeros(shape=dbeta.shape), np.zeros(shape=d2beta.shape),
-                np.zeros(shape=dphi_dot.shape))
+
+        beta_dot = dbeta * s_dot
+        beta_2dot = d2beta*(s_dot**2) + dbeta * s_2dot
+        phi_2dot = dphi_dot * s_dot
+
+        return beta_dot, beta_2dot, phi_2dot
