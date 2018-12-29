@@ -166,7 +166,7 @@ class ICREstimator:
                     continue
                 p_2 = get_p(j)
                 c = np.cross(p_1, p_2)
-                if if p_1.dot(p_2) / np.linalg.norm(p_1) * np.linalg.norm(p_2) == 1:
+                if p_1.dot(p_2) / np.linalg.norm(p_1) * np.linalg.norm(p_2) == 1:
                     # the sine of the dot product is zero i.e. they are co-linear:
                     # Throwout cases where the two wheels being compared are co-linear
                     print(f"wheels {i} and {j} are co-linear")
