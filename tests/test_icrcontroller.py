@@ -1,9 +1,9 @@
-from swervedrive.icr.controller import ICRController
+from swervedrive.icr import Controller
 import numpy as np
 
 
 def test_icrc_init():
-    icrc = ICRController(np.array([0]),  # modules_alpha
+    icrc = Controller(np.array([0]),  # modules_alpha
                          np.array([1]),  # modules_l
                          np.array([0.1]),  # modules_b
                          np.array([0.1]),  # modules_r

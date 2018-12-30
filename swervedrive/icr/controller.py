@@ -1,4 +1,4 @@
-from .estimator import ICREstimator
+from .estimator import Estimator
 from .pathplanner import PathPlanner
 from .kinematicmodel import KinematicModel
 from .timescaler import TimeScaler
@@ -7,9 +7,9 @@ import numpy as np
 from typing import List
 
 
-class ICRController:
+class Controller:
     """
-    ICRController is the class that implements the control algorithm and
+    Controller is the class that implements the control algorithm and
     instantiates all of the supporting classes.
     Note on notation: "d" in front of a variable name indicates it's
     derivative (notated as a dash in the papers). variable_dot indicates that
@@ -21,7 +21,7 @@ class ICRController:
                  beta_dot_bounds: List, beta_2dot_bounds: List,
                  phi_dot_bounds: List, phi_2dot_bounds: List):
         """
-        Initialize the ICREstimator object. The order in the following arrays
+        Initialize the Estimator object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
         :param modules_alpha: array containing the angle to each of the modules,
         measured counter clockwise from the x-axis.
@@ -46,7 +46,7 @@ class ICRController:
         self.r = modules_r
         self.n_modules = len(self.alpha)
 
-        self.icre = ICREstimator(epsilon_init, self.alpha, self.l, self.b)
+        self.icre = Estimator(epsilon_init, self.alpha, self.l, self.b)
 
         self.path_planner = PathPlanner(self.alpha, self.l, phi_dot_bounds,
                                         k_lmda=1, k_mu=1)

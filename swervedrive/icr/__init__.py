@@ -1,6 +1,6 @@
-from .controller import ICRController
-from .estimator import ICREstimator
+from .controller import Controller
+from .estimator import Estimator
 __all__ = [
-    "ICRController",
-    "ICREstimator"
+    "Controller",
+    "Estimator"
 ]

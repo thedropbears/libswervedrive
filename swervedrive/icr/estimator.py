@@ -2,7 +2,7 @@ import numpy as np
 import math
 
 
-class ICREstimator:
+class Estimator:
 
     # constants used in the lmda estimation algo
     eta_lmda: float = 1e-4  # TODO: figure out what values this should be
@@ -14,7 +14,7 @@ class ICREstimator:
     def __init__(self, epsilon_init: np.ndarray, modules_alpha: np.ndarray, modules_l: np.ndarray,
                  modules_b: np.ndarray):
         """
-        Initialize the ICREstimator object. The order in the following arrays
+        Initialize the Estimator object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
         :param epsilon_init: the starting position estimate for the robot
         position. Form (x, y, theta)^T.
