@@ -1,4 +1,4 @@
-from icrcontroller import ICRController
+from swervedrive.icr.controller import ICRController
 import numpy as np
 
 

@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from icrestimator import ICREstimator
+from swervedrive.icr.estimator import ICREstimator
 
 global tolerance
 tolerance = 0.05
