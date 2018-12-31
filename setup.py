@@ -10,5 +10,4 @@ setup(name='swervedrive',
       packages=['swervedrive'],
       install_requires=[
           'numpy',
-      ],
-      zip_safe=False)
+      ])
