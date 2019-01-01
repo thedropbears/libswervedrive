@@ -7,7 +7,7 @@ install:
   - pip install codecov
 
 script:
-  - pytest
+  - pytest --cov=swervedrive
 
 after_success:
   - codecov

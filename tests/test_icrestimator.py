@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from icrestimator import ICREstimator
+from swervedrive.icr import Estimator
 
 global tolerance
 tolerance = 0.05
@@ -11,7 +11,7 @@ def init_icre(alphas, ls, bs):
     ls = np.array(ls)
     bs = np.array(bs)
     epsilon = np.zeros(shape=(3, 1))
-    icre = ICREstimator(epsilon, alphas, ls, bs)
+    icre = Estimator(epsilon, alphas, ls, bs)
     return icre
 
 def test_estimate_lambda():
