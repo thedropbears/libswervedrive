@@ -88,10 +88,10 @@ class Controller:
             else:
                 k_b = self.update_backtracking_parameter(k_b)
 
-        s_dot, s_2dot = self.scaler.compute_scaling_parameters(
+        self.scaler.compute_scaling_parameters(
             s_dot_l, s_dot_u, s_2dot_l, s_2dot_u)
         beta_dot, beta_2dot, phi_2dot_p = self.scaler.scale_motion(
-            dbeta, d2beta, dphi_dot_p, s_dot, s_2dot)
+            dbeta, d2beta, dphi_dot_p)
 
         beta_c, phi_dot_c = self.integrator.integrate_motion(
             beta_dot, beta_2dot, phi_dot_p, phi_2dot_p, delta_t)

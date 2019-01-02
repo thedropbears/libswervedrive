@@ -83,7 +83,7 @@ class TimeScaler:
                                    d2s_lower: float, d2s_upper: float):
         """
         Compute the scaling parameters used to scale the motion. This function
-        requires that for both ds and d2s lower <= upper (ie the interval is
+        assumes that for both ds and d2s lower <= upper (ie the interval is
         not empty.) Sets the scaling parameters as object variables read when
         scale_motion is called.
         :param ds_lower: derivative of parameter s, lower bound.
@@ -91,11 +91,11 @@ class TimeScaler:
         :param d2s_lower: second derivative of parameter s, lower bound.
         :param d2s_upper: second derivative of parameter s, upper bound.
         """
-        self.ds = 1.
-        self.d2s = 1.
+        self.s_dot = ds_upper
+        self.s_2dot = d2s_upper
 
     def scale_motion(self, dbeta: np.ndarray, d2beta: np.ndarray,
-                     dphi_dot: np.ndarray, s_dot, s_2dot):
+                     dphi_dot: np.ndarray):
         """
         Scale the actuators' motion using the scaling bounds.
         :param dbeta: command for derivative of the angle of the modules.
@@ -105,9 +105,9 @@ class TimeScaler:
         :return: *time* derivatives of actuators motion beta_dot, beta_2dot, phi_2dot
         """
 
-        beta_dot = dbeta * s_dot
-        beta_2dot = d2beta*(s_dot**2) + dbeta * s_2dot
-        phi_2dot = dphi_dot * s_dot
+        beta_dot = dbeta * self.s_dot
+        beta_2dot = d2beta*(self.s_dot**2) + dbeta * self.s_2dot
+        phi_2dot = dphi_dot * self.s_dot
 
         return beta_dot, beta_2dot, phi_2dot
 

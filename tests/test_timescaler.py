@@ -32,6 +32,15 @@ def assert_scaling_bounds(beta_dot_b, beta_2dot_b, phi_2dot_b,
         assert ds_lower >= phi_2dot_b[lower_phi]/dphi_dot
         assert ds_upper <= phi_2dot_b[upper_phi]/dphi_dot
 
+    scaler.compute_scaling_parameters(
+        ds_lower, ds_upper, d2s_lower, d2s_upper)
+    beta_dot, beta_2dot, phi_2dot = \
+        scaler.scale_motion(dbeta, d2beta, dphi_dot)
+
+    assert beta_dot_b[0] <= beta_dot <= beta_2dot_b[1]
+    assert beta_2dot_b[0] <= beta_2dot <= beta_2dot_b[1]
+    assert phi_2dot_b[0] <= phi_2dot <= beta_2dot_b[1]
+
 
 def test_positive_velocities_in_range():
     # angular vel/accel bounds
