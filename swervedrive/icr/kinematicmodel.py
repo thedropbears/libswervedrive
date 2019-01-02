@@ -51,7 +51,6 @@ class KinematicModel:
         """
         return np.zeros(shape=(self.n_modules)) * 4
 
-
     def reconfigure_wheels(self, beta_d: np.ndarray, beta_e: np.ndarray):
         """
         Perform a wheel reconfiguration to a desired state.

@@ -73,21 +73,28 @@ class Controller:
         backtrack = True
 
         while backtrack:
-            dlmda, d2lmda, dmu = self.path_planner.compute_chassis_motion(lmda_d, lmda_e, mu_d, mu_e, k_b)
+            dlmda, d2lmda, dmu = self.path_planner.compute_chassis_motion(
+                lmda_d, lmda_e, mu_d, mu_e, k_b
+            )
 
-            dbeta, d2beta, phi_dot_p, dphi_dot_p = self.kinematic_model.compute_actuators_motion(dlmda, d2lmda, dmu)
+            dbeta, d2beta, phi_dot_p, dphi_dot_p = \
+                self.kinematic_model.compute_actuators_motion(dlmda, d2lmda, dmu)
 
-            s_dot_l, s_dot_u, s_2dot_l, s_2dot_u = self.scaler.compute_scaling_bounds(dbeta, d2beta, phi_dot_p, dphi_dot_p)
+            s_dot_l, s_dot_u, s_2dot_l, s_2dot_u = \
+                self.scaler.compute_scaling_bounds(dbeta, d2beta, phi_dot_p, dphi_dot_p)
 
             if s_dot_l <= s_dot_u and s_2dot_l <= s_2dot_u:
                 backtrack = False
             else:
                 k_b = self.update_backtracking_parameter(k_b)
 
-        s_dot, s_2dot = self.scaler.compute_scaling_parameters(s_dot_l, s_dot_u, s_2dot_l, s_2dot_u)
-        beta_dot, beta_2dot, phi_2dot_p = self.scaler.scale_motion(dbeta, d2beta, dphi_dot_p, s_dot, s_2dot)
+        s_dot, s_2dot = self.scaler.compute_scaling_parameters(
+            s_dot_l, s_dot_u, s_2dot_l, s_2dot_u)
+        beta_dot, beta_2dot, phi_2dot_p = self.scaler.scale_motion(
+            dbeta, d2beta, dphi_dot_p, s_dot, s_2dot)
 
-        beta_c, phi_dot_c = self.integrator.integrate_motion(beta_dot, beta_2dot, phi_dot_p, phi_2dot_p, delta_t)
+        beta_c, phi_dot_c = self.integrator.integrate_motion(
+            beta_dot, beta_2dot, phi_dot_p, phi_2dot_p, delta_t)
 
         return beta_c, phi_dot_c, xi_e
 
