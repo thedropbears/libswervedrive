@@ -71,7 +71,6 @@ def test_estimate_lambda():
     icr = np.array([0, -1, 1])
     desired_lmda = icr * 1 / np.linalg.norm(icr)
     lmda_e = icre.estimate_lmda(q)
-    print(f"estimated ICR = {lmda_e.T}")
     assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
 
     # # afaik this is the worst case scenario, 2 wheel singularities and a co-linear singularity
@@ -79,7 +78,6 @@ def test_estimate_lambda():
     # icr = np.array([0.5, 0.5, 1/math.sqrt(2)])
     # desired_lmda = icr * 1 / np.linalg.norm(icr)
     # lmda_e = icre.estimate_lmda(q)
-    # # print(f"norm of estimate - {np.linalg.norm(lmda_e)}")
     # assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
 
 
@@ -197,7 +195,6 @@ def test_select_starting_points():
     for p in sp:
         close.append(np.allclose(desired_lmda, p.T, atol=tolerance))
     assert any(close)
-    print(f"Close {close}")
 
     # Another square robot with side length of 2 to make calculations simpler
     alpha = math.pi / 4
@@ -215,13 +212,11 @@ def test_select_starting_points():
     )
     icr = np.array([-1, 0, 1])
     desired_lmda = icr * 1 / np.linalg.norm(icr)
-    print(f"desired lmda = {desired_lmda}")
     sp = icre.select_starting_points(q)
     close = []
     for p in sp:
         close.append(np.allclose(desired_lmda, p.T, atol=tolerance))
     assert any(close)
-    print(f"Close {close}")
 
 
 def test_flip_wheel():
