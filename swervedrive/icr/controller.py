@@ -81,7 +81,7 @@ class Controller:
                 self.kinematic_model.compute_actuators_motion(dlmda, d2lmda, dmu)
 
             s_dot_l, s_dot_u, s_2dot_l, s_2dot_u = \
-                self.scaler.compute_scaling_bounds(dbeta, d2beta, phi_dot_p, dphi_dot_p)
+                self.scaler.compute_scaling_bounds(dbeta, d2beta, dphi_dot_p)
 
             if s_dot_l <= s_dot_u and s_2dot_l <= s_2dot_u:
                 backtrack = False

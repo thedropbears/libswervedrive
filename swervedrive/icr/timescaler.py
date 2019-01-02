@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from typing import List
 
 
@@ -14,40 +15,67 @@ class TimeScaler:
         :param d2phi_bounds: Min/max allowable value for the angular
         acceleration of the module wheels, in rad/s^2.
         """
-        self.beta_dot_bounds = beta_dot_bounds
-        self.beta_2dot_bounds = beta_2dot_bounds
-        self.phi_2d,t_bounds = phi_2dot_bounds
+        self.beta_dot_b = beta_dot_bounds
+        self.beta_2dot_b = beta_2dot_bounds
+        self.phi_2dot_b = phi_2dot_bounds
 
     def compute_scaling_bounds(self, dbeta: np.ndarray, d2beta: np.ndarray,
-                               phi_dot: np.ndarray, dphi_dot: np.ndarray):
+                               dphi_dot: np.ndarray):
         """
         Compute bounds of the scaling factors for the motion.
+        This function effectively computes bounds such that the possibly
+        arbitrarily high amplitude of the commands from the kinematic model
+        obeys the physical constraints of the robot motion.
         :param dbeta: command for derivative of the angle of the modules.
         :param d2beta: command for second derivative of the angle of the modules.
-        :param phi_dot: command for angular velocity of the module wheels.
         :param dphi_dot: command for derivative of angular velocity of the
         module wheels.
         :return: upper and lower scaling bounds for derivative of s and second
         derivative of s: ds_lower, ds_upper, d2s_lower, d2s_upper.
         """
+        if (in_range(dbeta, self.beta_dot_b)
+                and in_range(d2beta, self.beta_2dot_b)
+                and in_range(dphi_dot, self.phi_2dot_b)):
+            # all of the differential constraints are already satisfied, so
+            # no scaling is required
+            return 0, 1, 0, 1
 
-        lower_36a = min(self.beta_dot_bounds) / dbeta
-        upper_36a = max(self.beta_dot_bounds) / dbeta
+        # we ignore the corresponding constraints if their governing command
+        # value is close to zero
+        # TODO: figure out what the tolerances should be
+        ignore_beta = math.isclose(dbeta, 0, abs_tol=1e-2)
+        ignore_phi = math.isclose(dphi_dot, 0, abs_tol=1e-2)
 
-        lower_36c = min(self.phi_2dot_bounds) / dphi_dot
-        upper_36c = max(self.phi_2dot_bounds) / dphi_dot
+        ds_lower, ds_upper, d2s_lower, d2s_upper = 0, 1, 0, 1
 
-        ds_lower = max(lower_36a , lower_36c)
-        ds_upper = min(upper_36a , upper_36c)
+        if not ignore_beta:
+            # need to reverse inequality if we have a negative
+            (lower, upper) = (1, 0) if dbeta < 0 else (0, 1)
+            # equation 36a in control paper
+            ds_lower = max(ds_lower,
+                           self.beta_2dot_b[lower]/dbeta)
+            ds_upper = min(ds_upper,
+                           self.beta_2dot_b[upper]/dbeta)
+        if not ignore_phi:
+            (lower, upper) = (1, 0) if dphi_dot < 0 else (0, 1)
+            # equation 36c in control paper
+            ds_lower = max(ds_lower,
+                           self.phi_2dot_b[lower]/dphi_dot)
+            ds_upper = min(ds_upper,
+                           self.phi_2dot_b[upper]/dphi_dot)
 
-        lower_36b_lower = (min(self.beta_2dot_bounds) - (d2beta * ds_lower ** 2)) / dbeta
-        lower_36b_upper = (min(self.beta_2dot_bounds) - (d2beta * ds_upper ** 2)) / dbeta
-
-        upper_36b_lower = (max(self.beta_2dot_bounds) - (d2beta * ds_lower ** 2)) / dbeta
-        upper_36b_upper = (max(self.beta_2dot_bounds) - (d2beta * ds_upper ** 2)) / dbeta
-
-        d2s_lower = min(lower_36b_lower, lower_36b_upper)
-        d2s_upper = max(upper_36b_lower, upper_36b_upper)
+        if not ignore_beta:
+            # apply constraint on second derivative
+            # must calculate here as it depends on the value of s_dot, which
+            # in turn is defined by the value of ds_upper
+            s_dot = ds_upper # we pick the maximum value for s_dot
+            (lower, upper) = (1, 0) if dbeta < 0 else (0, 1)
+            d2s_lower = max(d2s_lower,
+                            (self.beta_2dot_b[lower]-d2beta*(s_dot**2))
+                            / dbeta)
+            d2s_upper = min(d2s_upper,
+                            (self.beta_2dot_b[upper]-d2beta*(s_dot**2))
+                            / dbeta)
 
         return ds_lower, ds_upper, d2s_lower, d2s_upper
 
@@ -82,3 +110,8 @@ class TimeScaler:
         phi_2dot = dphi_dot * s_dot
 
         return beta_dot, beta_2dot, phi_2dot
+
+
+def in_range(value, rng):
+    """ Check if value is in the range of list[0], list[1] """
+    return rng[0] <= value <= rng[1]
