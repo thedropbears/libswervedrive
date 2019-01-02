@@ -63,7 +63,7 @@ class Controller:
         :param lmda_d: desired ICR.
         :param mu_d: desired mu (rotation about ICR).
         :param delta_t: time over which control step will be executed.
-        :return: beta_c, phi_dot_c
+        :returns: beta_c, phi_dot_c
         """
         lmda_e = self.icre.estimate_lmda(modules_beta)
         mu_e = self.icre.estimate_mu(modules_phi_dot, lmda_e)

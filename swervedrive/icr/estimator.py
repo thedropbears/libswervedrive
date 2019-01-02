@@ -66,7 +66,7 @@ class Estimator:
         Find the rotational position of the robot about the ICR.
         :param phi_dot: array of angular velocities of the wheels.
         :param lmda_e: the estimate of the ICR in h-space.
-        :return: the estimate of mu (float).
+        :returns: the estimate of mu (float).
         """
         # this requires solving equation (22) from the control paper, i think
         # we may need to look into whether this is valid for a system with no
@@ -79,7 +79,7 @@ class Estimator:
         :param q: list of angles beta between representing the steer angle
         (measured relative to the orientation orthogonal to the line to the
         chassis frame origin.)
-        :return: our estimate of ICR as the array (u, v, w)^T.
+        :returns: our estimate of ICR as the array (u, v, w)^T.
         """
         print(f'Estimate_lmda started q_in {q}')
         starting_points = self.select_starting_points(q)
@@ -145,7 +145,7 @@ class Estimator:
         :param q: list of angles beta between representing the steer angle
         (measured relative to the orientation orthogonal to the line to the
         chassis frame origin.)
-        :return: List of the top three starting points ordered according to
+        :returns: List of the top three starting points ordered according to
         their distance to the input length.
         """
         starting_points = []
@@ -187,7 +187,7 @@ class Estimator:
         Compute the derivateves of the constraining surface at the current
         estimate of the point.
         :param lmda: position of the ICR estimate
-        :return: np.ndarray with (S_u, S_v). S_u and S_v are the vectors
+        :returns: np.ndarray with (S_u, S_v). S_u and S_v are the vectors
         containing the derivatives of each steering angle in q with respect
         u and v, respectively.
         """
@@ -228,7 +228,7 @@ class Estimator:
         (measured relative to the orientation orthogonal to the line to the
         chassis frame origin.)
         :param lmda: position of the ICR estimate.
-        :return: the free parameters in the form (delta_u, delta_v).
+        :returns: the free parameters in the form (delta_u, delta_v).
         """
         a_u = S_u.dot(S_u)
         a_c = S_u.dot(S_v)
@@ -254,7 +254,7 @@ class Estimator:
         :param q: list of angles beta representing the steer angle
         (measured relative to the orientation orthogonal to the line to the
         chassis frame origin.)
-        :return: the new ICR estimate, a flag indicating divergence of the
+        :returns: the new ICR estimate, a flag indicating divergence of the
         algorithm for this starting point.
         """
         lmda_t = lmda
@@ -292,7 +292,7 @@ class Estimator:
         Handle the structural singularities that may have been produced when
         the parameters were updated (when the ICR lies on a steering axis).
         :param lmda: the ICR estimate after the parameters were updated.
-        :return: if the ICR is on a structural singularity, and the wheel
+        :returns: if the ICR is on a structural singularity, and the wheel
         number which the singularity is on if there is one
         """
         wheel_number = None
@@ -309,7 +309,7 @@ class Estimator:
         Compute the point in the joint space (space of all beta steering angle
         values) associated with a particular ICR.
         :param lmda: the ICR to compute the point for.
-        :return: row vector expressing the point.
+        :returns: row vector expressing the point.
         """
         S = np.zeros(shape=(self.n_modules,))
         lmda = lmda.T # computations require lambda as a row vector
@@ -331,7 +331,7 @@ class Estimator:
         in both cases the wheel does not have to turn.
         :param q: an array representing all of the current beta angles
         :parem S_lmda: an array of all the beta angles required to achieve a desired ICR
-        :return: an array of the same length as the input arrays with each component
+        :returns: an array of the same length as the input arrays with each component
         as the correct distance of q from S_lmda.
         This is done to prevent an 'out by pi' issue where q and S_lmda would not converge.
         We also track the number of times each wheel has been flipped to ensure that it drives
@@ -351,6 +351,6 @@ def column(mat, row_i):
     """
     Grab a column from a vector as a numpy column vector.
     :param row_i: row index
-    :return: the column vector (shape (n, 1))
+    :returns: the column vector (shape (n, 1))
     """
     return mat[:, row_i : row_i + 1]

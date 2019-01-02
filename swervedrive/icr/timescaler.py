@@ -30,7 +30,7 @@ class TimeScaler:
         :param d2beta: command for second derivative of the angle of the modules.
         :param dphi_dot: command for derivative of angular velocity of the
         module wheels.
-        :return: upper and lower scaling bounds for derivative of s and second
+        :returns: upper and lower scaling bounds for derivative of s and second
         derivative of s: ds_lower, ds_upper, d2s_lower, d2s_upper.
         """
         if (in_range(dbeta, self.beta_dot_b)
@@ -102,7 +102,7 @@ class TimeScaler:
         :param d2beta: command for second derivative of the angle of the modules.
         :param dphi_dot: command for derivative of angular velocity of the
         module wheels.
-        :return: *time* derivatives of actuators motion beta_dot, beta_2dot, phi_2dot
+        :returns: *time* derivatives of actuators motion beta_dot, beta_2dot, phi_2dot
         """
 
         beta_dot = dbeta * self.s_dot

@@ -28,7 +28,7 @@ class MotionIntegrator:
         :param delta_t: timestep over which the command will be executed.
         :param beta_e: estimate of the current beta values (angles) of the
         modules.
-        :return: beta_c, phi_dot_c (module angle and wheel angular velocity
+        :returns: beta_c, phi_dot_c (module angle and wheel angular velocity
         commands)
         """
 
