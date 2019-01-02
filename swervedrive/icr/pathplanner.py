@@ -33,7 +33,7 @@ class PathPlanner:
         :param mu_d: Desired motion about the ICR.
         :param mu_e: Estimate of the current motion about the ICR.
         :param k_b: Backtracking constant.
-        :return: (derivative of lmda, 2nd derivative of lmda, derivative of mu)
+        :returns: (derivative of lmda, 2nd derivative of lmda, derivative of mu)
         """
 
         dlmda = k_b * self.k_lmda * (lmda_d - (lmda_e.dot(lmda_d)) * lmda_e)

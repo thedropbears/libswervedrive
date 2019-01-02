@@ -45,12 +45,11 @@ class KinematicModel:
         :param dlmda: first derivative of lmda, as a column vector.
         :param d2lmda: second derivative of lmda, as a column vector.
         :param dmu: derivative of mu.
-        :return: first and second derivatives of the actuators' positions, as
+        :returns: first and second derivatives of the actuators' positions, as
         arrays: (dbeta, d2beta, phi_dot, dphi_dot) (phi_dot is a already a time
         derivative as the relevant constraints are applied in the path planner).
         """
         return np.zeros(shape=(self.n_modules)) * 4
-
 
     def reconfigure_wheels(self, beta_d: np.ndarray, beta_e: np.ndarray):
         """

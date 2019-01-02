@@ -28,16 +28,18 @@ class MotionIntegrator:
         :param delta_t: timestep over which the command will be executed.
         :param beta_e: estimate of the current beta values (angles) of the
         modules.
-        :return: beta_c, phi_dot_c (module angle and wheel angular velocity
+        :returns: beta_c, phi_dot_c (module angle and wheel angular velocity
         commands)
         """
 
         beta_c = beta_e + beta_dot * delta_t + 1/2 * beta_2dot * (delta_t ** 2)  # 40a
 
-        phi_dot_c = (phi_dot - self.b / self.r * beta_dot) + (phi_2dot - self.b / self.r * beta_2dot) * delta_t  # 40b
+        phi_dot_c = ((phi_dot - self.b / self.r * beta_dot)
+                     + (phi_2dot - self.b / self.r * beta_2dot) * delta_t)  # 40b
 
         beta_c = np.clip(beta_c, self.beta_bounds[0], self.beta_bounds[1])  # 41a
 
-        phi_dot_c = np.clip(phi_dot_c, self.phi_dot_bounds[0], self.phi_dot_bounds[1])  # 41b
+        phi_dot_c = np.clip(phi_dot_c, self.phi_dot_bounds[0],
+                            self.phi_dot_bounds[1])  # 41b
 
         return beta_c, phi_dot_c
