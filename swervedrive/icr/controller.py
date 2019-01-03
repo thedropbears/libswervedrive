@@ -2,7 +2,6 @@ from .estimator import Estimator
 from .pathplanner import PathPlanner
 from .kinematicmodel import KinematicModel
 from .timescaler import TimeScaler
-from .motionintegrator import MotionIntegrator
 import numpy as np
 from typing import List
 
@@ -45,6 +44,11 @@ class Controller:
         self.b = modules_b
         self.r = modules_r
         self.n_modules = len(self.alpha)
+        self.beta_bounds = beta_bounds
+        self.beta_dot_bounds = beta_dot_bounds
+        self.beta_2dot_bounds = beta_2dot_bounds
+        self.phi_dot_bounds = phi_dot_bounds
+        self.phi_2dot_bounds = phi_2dot_bounds
 
         self.icre = Estimator(epsilon_init, self.alpha, self.l, self.b)
 
@@ -52,7 +56,6 @@ class Controller:
                                         k_lmda=1, k_mu=1)
         self.kinematic_model = KinematicModel(self.alpha, self.l, self.b, k_beta=1)
         self.scaler = TimeScaler(beta_dot_bounds, beta_2dot_bounds, phi_2dot_bounds)
-        self.integrator = MotionIntegrator(beta_bounds, phi_dot_bounds, self.b, self.r)
 
     def control_step(self, modules_beta: np.ndarray, modules_phi_dot: np.ndarray,
                      lmda_d: np.ndarray, mu_d: float, delta_t: float):
@@ -93,9 +96,36 @@ class Controller:
         beta_dot, beta_2dot, phi_2dot_p = self.scaler.scale_motion(
             dbeta, d2beta, dphi_dot_p)
 
-        beta_c, phi_dot_c = self.integrator.integrate_motion(
-            beta_dot, beta_2dot, phi_dot_p, phi_2dot_p, delta_t)
+        beta_c, phi_dot_c = self.integrate_motion(
+            beta_dot, beta_2dot, phi_dot_p, phi_2dot_p, modules_beta, delta_t)
 
         return beta_c, phi_dot_c, xi_e
-
         # return np.zeros(shape=(self.n_modules,)), np.zeros(shape=(self.n_modules,))
+
+
+    def integrate_motion(self, beta_dot: np.ndarray, beta_2dot: np.ndarray,
+                         phi_dot: np.ndarray, phi_2dot: np.ndarray,
+                         beta_e: np.ndarray, delta_t: float):
+        """
+        Integrate the motion to produce the beta and phi_dot commands.
+        :param beta_dot: command for the module's angular velocity.
+        :param beta_2dot: command for the module's angular acceleration.
+        :param phi_dot: command for the module wheel's angular velocity.
+        :param phi_2dot: command for the module wheel's angular acceleration.
+        :param beta_e: the current measured beta values (angles) of the modules.
+        :param delta_t: timestep over which the command will be executed.
+        :returns: beta_c, phi_dot_c (module angle and wheel angular velocity
+        commands)
+        """
+
+        beta_c = beta_e + beta_dot * delta_t + 1/2 * beta_2dot * (delta_t ** 2)  # 40a
+
+        phi_dot_c = ((phi_dot - self.b / self.r * beta_dot)
+                     + (phi_2dot - self.b / self.r * beta_2dot) * delta_t)  # 40b
+
+        beta_c = np.clip(beta_c, self.beta_bounds[0], self.beta_bounds[1])  # 41a
+
+        phi_dot_c = np.clip(phi_dot_c, self.phi_dot_bounds[0],
+                            self.phi_dot_bounds[1])  # 41b
+
+        return beta_c, phi_dot_c
