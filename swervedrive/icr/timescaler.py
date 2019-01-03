@@ -43,8 +43,8 @@ class TimeScaler:
         # we ignore the corresponding constraints if their governing command
         # value is close to zero
         # TODO: figure out what the tolerances should be
-        ignore_beta = math.isclose(dbeta, 0, abs_tol=1e-2)
-        ignore_phi = math.isclose(dphi_dot, 0, abs_tol=1e-2)
+        ignore_beta = np.isclose(dbeta, 0, atol=1e-2).all()
+        ignore_phi = np.isclose(dphi_dot, 0, atol=1e-2).all()
 
         ds_lower, ds_upper, d2s_lower, d2s_upper = 0, 1, 0, 1
 
@@ -113,5 +113,5 @@ class TimeScaler:
 
 
 def in_range(value, rng):
-    """ Check if value is in the range of list[0], list[1] """
-    return rng[0] <= value <= rng[1]
+    """ Check if value(s) are in the range of list[0], list[1] """
+    return (rng[0] <= value).all() and (value <= rng[1]).all()

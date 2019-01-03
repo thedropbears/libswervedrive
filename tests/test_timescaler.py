@@ -49,7 +49,7 @@ def test_positive_velocities_in_range():
     # wheel rotation bounds
     phi_2dot_b = [-1, 1]
     # motion commands generated from the kinematic model for this timestep
-    dbeta, d2beta, dphi_dot = 0.5, 0.25, 0.25
+    dbeta, d2beta, dphi_dot = np.array([0.5]), np.array([0.25]), np.array([0.25])
     assert_scaling_bounds(beta_dot_b, beta_2dot_b, phi_2dot_b, dbeta, d2beta, dphi_dot)
 
 
@@ -60,7 +60,7 @@ def test_negative_velocities_in_range():
     # wheel rotation bounds
     phi_2dot_b = [-1, 1]
     # motion commands generated from the kinematic model for this timestep
-    dbeta, d2beta, dphi_dot = -0.5, -0.25, -0.25
+    dbeta, d2beta, dphi_dot = np.array([-0.5]), np.array([-0.25]), np.array([-0.25])
     assert_scaling_bounds(beta_dot_b, beta_2dot_b, phi_2dot_b, dbeta, d2beta, dphi_dot)
 
 
@@ -71,7 +71,7 @@ def test_positive_velocities_not_in_range():
     # wheel rotation bounds
     phi_2dot_b = [-1, 1]
     # motion commands generated from the kinematic model for this timestep
-    dbeta, d2beta, dphi_dot = 5, 1.5, 1.5
+    dbeta, d2beta, dphi_dot = np.array([5]), np.array([1.5]), np.array([1.5])
     assert_scaling_bounds(beta_dot_b, beta_2dot_b, phi_2dot_b, dbeta, d2beta, dphi_dot)
 
 
@@ -82,7 +82,7 @@ def test_negative_velocities_not_in_range():
     # wheel rotation bounds
     phi_2dot_b = [-1, 1]
     # motion commands generated from the kinematic model for this timestep
-    dbeta, d2beta, dphi_dot = -5, -1.5, -1.5
+    dbeta, d2beta, dphi_dot = np.array([-5]), np.array([-1.5]), np.array([-1.5])
     assert_scaling_bounds(beta_dot_b, beta_2dot_b, phi_2dot_b, dbeta, d2beta, dphi_dot)
 
 
@@ -94,6 +94,7 @@ def test_dbeta_zero():
     phi_2dot_b = [-1, 1]
     # motion commands generated from the kinematic model for this timestep
     dbeta, d2beta, dphi_dot = 0.01, -1.5, -1.5
+    dbeta, d2beta, dphi_dot = np.array([0.01]), np.array([-1.5]), np.array([-1.5])
     assert_scaling_bounds(beta_dot_b, beta_2dot_b, phi_2dot_b, dbeta, d2beta, dphi_dot)
 
 
@@ -104,7 +105,7 @@ def test_d2beta_zero():
     # wheel rotation bounds
     phi_2dot_b = [-1, 1]
     # motion commands generated from the kinematic model for this timestep
-    dbeta, d2beta, dphi_dot = 5, 0.01, -1.5
+    dbeta, d2beta, dphi_dot = np.array([5]), np.array([0.01]), np.array([-1.5])
     assert_scaling_bounds(beta_dot_b, beta_2dot_b, phi_2dot_b, dbeta, d2beta, dphi_dot)
 
 
@@ -115,7 +116,7 @@ def test_dphi_dot_zero():
     # wheel rotation bounds
     phi_2dot_b = [-1, 1]
     # motion commands generated from the kinematic model for this timestep
-    dbeta, d2beta, dphi_dot = -5, -1.5, 0
+    dbeta, d2beta, dphi_dot = np.array([-5]), np.array([-1.5]), np.array([0])
     assert_scaling_bounds(beta_dot_b, beta_2dot_b, phi_2dot_b, dbeta, d2beta, dphi_dot)
 
 
@@ -127,6 +128,7 @@ def test_opposing_signs():
     phi_2dot_b = [-1, 1]
     # motion commands generated from the kinematic model for this timestep
     dbeta, d2beta, dphi_dot = 5, -1.5, -5
+    dbeta, d2beta, dphi_dot = np.array([5]), np.array([-1.5]), np.array([-5])
     assert_scaling_bounds(beta_dot_b, beta_2dot_b, phi_2dot_b, dbeta, d2beta, dphi_dot)
 
 
@@ -137,5 +139,5 @@ def test_all_zero():
     # wheel rotation bounds
     phi_2dot_b = [-1, 1]
     # motion commands generated from the kinematic model for this timestep
-    dbeta, d2beta, dphi_dot = 0, 0, 0
+    dbeta, d2beta, dphi_dot = np.array([0]), np.array([0]), np.array([0])
     assert_scaling_bounds(beta_dot_b, beta_2dot_b, phi_2dot_b, dbeta, d2beta, dphi_dot)
