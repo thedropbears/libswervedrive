@@ -12,7 +12,7 @@ class KinematicModel:
         k_beta: float,
     ):
         """
-        Initialize the KinamaticModel object. The order in the following arrays
+        Initialize the KinematicModel object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
         :param alpha: array containing the angle to each of the modules,
         measured counter clockwise from the x-axis (rad).
@@ -68,14 +68,19 @@ class KinematicModel:
             np.sin(lmda), self.a_orth
         )
 
-        beta_prime = -(s1_lmda.transpose().dot(lmda_dot)) / (
-            s2_lmda.transpose().dot(lmda)
-        )
+        denom = s2_lmda.transpose().dot(lmda)
+        # Any zeros in denom represent an ICR on a wheel axis
+        # Set the corresponding beta_prime and beta_2prime to 0
+        denom[denom == 0] = 1e20
+        beta_prime = -(s1_lmda.transpose().dot(lmda_dot)) / denom
 
-        beta_2prime = -(
-            2 * np.multiply(beta_prime, s2_lmda.transpose().dot(lmda_dot))
-            + s1_lmda.transpose().dot(lmda_2dot)
-        ) / s2_lmda.transpose().dot(lmda)
+        beta_2prime = (
+            -(
+                2 * np.multiply(beta_prime, s2_lmda.transpose().dot(lmda_dot))
+                + s1_lmda.transpose().dot(lmda_2dot)
+            )
+            / denom
+        )
 
         phi_dot = np.divide(
             (s2_lmda - self.b_vector).transpose().dot(lmda) * mu
@@ -110,4 +115,5 @@ class KinematicModel:
         :beta_e: array of measured beta values.
         :returns: Array of dbeta values.
         """
-        return np.zeros(shape=(self.n_modules,))
+        error = beta_d - beta_e
+        return k_beta * error
