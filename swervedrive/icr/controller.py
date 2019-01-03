@@ -123,7 +123,6 @@ class Controller:
         )
 
         return beta_c, phi_dot_c, xi_e
-        # return np.zeros(shape=(self.n_modules,)), np.zeros(shape=(self.n_modules,))
 
     def integrate_motion(
         self,
