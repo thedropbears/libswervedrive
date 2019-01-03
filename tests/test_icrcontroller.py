@@ -13,5 +13,5 @@ def test_icrc_init():
         [-1, 1],  # beta_dot_bounds
         [-1, 1],  # beta_2dot_bounds
         [-1, 1],  # phi_dot_bounds
-        [-1, 1],
-    )  # phi_2dot_bounds
+        [-1, 1],  # phi_2dot_bounds
+    )
