@@ -95,6 +95,10 @@ class Controller:
         k_b = 1
         backtrack = True
 
+        if self.kinematic_model.state == KinematicModel.State.STOPPING:
+            mu_d = 0
+            lmda_d = lmda_e
+
         while backtrack:
             dlmda, d2lmda, dmu = self.path_planner.compute_chassis_motion(
                 lmda_d, lmda_e, mu_d, mu_e, k_b
@@ -103,6 +107,12 @@ class Controller:
             dbeta, d2beta, phi_dot_p, dphi_dot_p = self.kinematic_model.compute_actuators_motion(
                 lmda_e, dlmda, d2lmda, mu_e, dmu
             )
+            if self.kinematic_model.state == KinematicModel.State.RECONFIGURING:
+                beta_d = self.icre.S(lmda_d)
+                dbeta = self.kinematic_model.reconfigure_wheels(beta_d, modules_beta)
+                d2beta = np.array([0] * len(dbeta))
+                phi_dot_p = np.array([0] * len(dbeta))
+                dphi_dot_p = np.array([0] * len(dbeta))
 
             s_dot_l, s_dot_u, s_2dot_l, s_2dot_u = self.scaler.compute_scaling_bounds(
                 dbeta, d2beta, dphi_dot_p
@@ -149,23 +159,24 @@ class Controller:
             phi_2dot - self.b / self.r * beta_2dot
         ) * delta_t  # 40b
         # Check limits
-        f = 1.0  # scaling factor
+        fd = 1.0  # scaling factor
         for pdc in phi_dot_c:
-            if pdc * f > self.phi_dot_bounds[1]:
-                f = pdc / self.phi_dot_bounds[1]
-            if pdc * f < self.phi_dot_bounds[0]:
-                f = pdc / self.phi_dot_bounds[0]
+            if pdc * fd > self.phi_dot_bounds[1]:
+                fd = pdc / self.phi_dot_bounds[1]
+            if pdc * fd < self.phi_dot_bounds[0]:
+                fd = pdc / self.phi_dot_bounds[0]
 
         beta_c = (
-            beta_e + f * beta_dot * delta_t + f * 1 / 2 * beta_2dot * (delta_t ** 2)
+            beta_e + fd * beta_dot * delta_t + fd * 1 / 2 * beta_2dot * (delta_t ** 2)
         )  # 40a
+        phi_dot_c = fd * phi_dot_c  # 42
 
         if not all(bc < self.beta_bounds[1] for bc in beta_c) or not all(
             bc > self.beta_bounds[0] for bc in beta_c
         ):
             beta_c = beta_e  # 43
-            # TODO This requires a wheel reconfig in the kinematic model
-
-        phi_dot_c = f * phi_dot_c  # 42
+            phi_dot_c = phi_dot
+            # This requires a wheel reconfig in the kinematic model
+            self.kinematic_model.state = KinematicModel.State.STOPPING
 
         return beta_c, phi_dot_c

@@ -1,8 +1,14 @@
+from enum import Enum
 import numpy as np
 import math
 
 
 class KinematicModel:
+    class State(Enum):
+        STOPPING = 1
+        RECONFIGURING = 2
+        RUNNING = 3
+
     def __init__(
         self,
         alpha: np.ndarray,
@@ -38,6 +44,7 @@ class KinematicModel:
         self.l = np.reshape(l, (n, 1))
         self.b_vector = np.array([[0] * n, [0] * n, b])
         self.l_vector = np.array([[0] * n, [0] * n, l])
+        self.state = KinematicModel.State.STOPPING
 
     def compute_actuators_motion(
         self,
@@ -58,6 +65,12 @@ class KinematicModel:
         arrays: (beta_prime, beta_2prime, phi_dot, phi_dot_prime) (phi_dot is a already a time
         derivative as the relevant constraints are applied in the path planner).
         """
+
+        if self.state == KinematicModel.State.STOPPING:
+            if abs(mu) < 1e-3:
+                # We are stopped, so we can reconfigure
+                self.state = KinematicModel.State.RECONFIGURING
+
         lmda = np.reshape(lmda, (len(lmda), 1))
         lmda_dot = np.reshape(lmda_dot, (len(lmda_dot), 1))
         lmda_2dot = np.reshape(lmda_2dot, (len(lmda_2dot), 1))
@@ -116,4 +129,7 @@ class KinematicModel:
         :returns: Array of dbeta values.
         """
         error = beta_d - beta_e
-        return k_beta * error
+        dbeta = self.k_beta * error
+        if np.isclose(dbeta, 0, atol=1e-2).all():
+            self.state = KinematicModel.State.RUNNING
+        return dbeta

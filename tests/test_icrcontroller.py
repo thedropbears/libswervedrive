@@ -1,4 +1,5 @@
 from swervedrive.icr import Controller
+from swervedrive.icr.kinematicmodel import KinematicModel
 
 import math
 import numpy as np
@@ -7,7 +8,7 @@ import pytest
 
 @pytest.fixture
 def unlimited_rotation_controller():
-    return Controller(
+    c = Controller(
         np.array([0, math.pi / 2, math.pi, math.pi * 3 / 4]),  # modules_alpha
         np.array([1] * 4),  # modules_l
         np.array([0] * 4),  # modules_b
@@ -19,6 +20,8 @@ def unlimited_rotation_controller():
         [-1e6, 1e6],  # phi_dot_bounds
         [-1e6, 1e6],  # phi_2dot_bounds
     )
+    c.kinematic_model.state = KinematicModel.State.RUNNING
+    return c
 
 
 def test_icrc_init():

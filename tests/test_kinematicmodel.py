@@ -13,7 +13,10 @@ def get_model():
     r = np.array([0.1] * 4)
     k_beta = 1.0
 
-    return KinematicModel(alpha, l, b, r, k_beta)
+    km = KinematicModel(alpha, l, b, r, k_beta)
+    km.state = KinematicModel.State.RUNNING
+
+    return km
 
 
 def test_compute_actuators_motion():
