@@ -24,13 +24,11 @@ def unlimited_rotation_controller():
     return c
 
 
-def test_icrc_init():
-    c = unlimited_rotation_controller()
-    assert c is not None
+def test_icrc_init(unlimited_rotation_controller):
+    assert unlimited_rotation_controller is not None
 
 
-def test_respect_velocity_bounds():
-    c = unlimited_rotation_controller()
+def test_respect_velocity_bounds(unlimited_rotation_controller):
     # Modules can only rotate at a maximum of 0.5 rad/s
     # Make sure the controller respects these limits
     iterations = 0
@@ -41,13 +39,13 @@ def test_respect_velocity_bounds():
     dt = 0.1
     beta_prev = modules_beta
     while iterations < 100:
-        beta_cmd, phi_cmd, xi_e = c.control_step(
+        beta_cmd, phi_cmd, xi_e = unlimited_rotation_controller.control_step(
             modules_beta, modules_phi_dot, lmda_d, mu_d, dt
         )
         delta_beta = beta_cmd - beta_prev
         # Checked limits are respected
-        assert all((db) >= c.beta_dot_bounds[0] * dt for db in delta_beta)
-        assert all((db) <= c.beta_dot_bounds[1] * dt for db in delta_beta)
+        assert all((db) >= unlimited_rotation_controller.beta_dot_bounds[0] * dt for db in delta_beta)
+        assert all((db) <= unlimited_rotation_controller.beta_dot_bounds[1] * dt for db in delta_beta)
         # Check if we have hit our desired target (within some tolerance)
         if all(abs(db) < 1e-3 for db in delta_beta):
             break
