@@ -91,8 +91,8 @@ class TimeScaler:
             # need to reverse inequality if we have a negative
             (lower, upper) = (1, 0) if dbeta < 0 else (0, 1)
             # equation 36a in control paper
-            s_dot_l = max(s_dot_l, self.beta_2dot_b[lower] / dbeta)
-            s_dot_u = min(s_dot_u, self.beta_2dot_b[upper] / dbeta)
+            s_dot_l = max(s_dot_l, self.beta_dot_b[lower] / dbeta)
+            s_dot_u = min(s_dot_u, self.beta_dot_b[upper] / dbeta)
         if not ignore_phi:
             (lower, upper) = (1, 0) if dphi_dot < 0 else (0, 1)
             # equation 36c in control paper
