@@ -43,7 +43,7 @@ def test_estimate_lambda():
     icre = init_icre(alphas, [1] * 4, [0, 0, 0, 0])
 
     # test case from the simulator
-    q = np.array([6.429e-04, -6.429e-04, 3.1422, 3.1409])
+    q = np.array([0.0, 0.0, math.pi, math.pi])
     desired_lmda = np.array([0, 0, 1])
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
