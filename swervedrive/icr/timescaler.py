@@ -3,6 +3,13 @@ from typing import List
 
 
 class TimeScaler:
+
+    # we ignore the corresponding constraints if their governing command
+    # value is close to zero
+    # TODO: figure out what the tolerances should be
+    ignore_beta_thresh: float = 1e-2
+    ignore_phi_thresh: float = 1e-2
+
     def __init__(
         self, beta_dot_bounds: List, beta_2dot_bounds: List, phi_2dot_bounds: List
     ):
@@ -37,17 +44,22 @@ class TimeScaler:
         s_dot_u = 1
         s_2dot_l = 0
         s_2dot_u = 1
-        for i in range(len(dbeta)):
-            sdl, sdu, s2dl, s2du = self.compute_module_scaling_bounds(
+        n_modules = len(dbeta)
+        for i in range(n_modules):
+            sdl, sdu = self.compute_module_s_dot_bounds(
                 dbeta[i], d2beta[i], dphi_dot[i]
             )
             s_dot_l = max(s_dot_l, sdl)
             s_dot_u = min(s_dot_u, sdu)
+        for i in range(n_modules):
+            s2dl, s2du = self.compute_module_s_2dot_bounds(
+                dbeta[i], d2beta[i], s_dot_u)
             s_2dot_l = max(s_2dot_l, s2dl)
             s_2dot_u = min(s_2dot_u, s2du)
+
         return s_dot_l, s_dot_u, s_2dot_l, s_2dot_u
 
-    def compute_module_scaling_bounds(
+    def compute_module_s_dot_bounds(
         self, dbeta: float, d2beta: float, dphi_dot: float
     ):
         """
@@ -59,25 +71,21 @@ class TimeScaler:
         :param d2beta: command for second derivative of the angle of the modules.
         :param dphi_dot: command for derivative of angular velocity of the
         module wheels.
-        :returns: upper and lower scaling bounds for 1st and 2nd time derivatives
-        of s: s_dot_l, s_dot_u, s_2dot_l, s_2dot_u
+        :returns: upper and lower scaling bounds for 1st time derivative
+        of s: s_dot_l, s_dot_u
         """
         if (
             in_range(dbeta, self.beta_dot_b)
             and in_range(d2beta, self.beta_2dot_b)
             and in_range(dphi_dot, self.phi_2dot_b)
         ):
-            # all of the differential constraints are already satisfied, so
-            # no scaling is required
-            return 0, 1, 0, 1
+            # constraits in 35a and c are satisfied, no scaling required
+            return 0, 1
 
-        # we ignore the corresponding constraints if their governing command
-        # value is close to zero
-        # TODO: figure out what the tolerances should be
-        ignore_beta = np.isclose(dbeta, 0, atol=1e-2).all()
-        ignore_phi = np.isclose(dphi_dot, 0, atol=1e-2).all()
+        ignore_beta = np.isclose(dbeta, 0, atol=self.ignore_beta_thresh).all()
+        ignore_phi = np.isclose(dphi_dot, 0, atol=self.ignore_phi_thresh).all()
 
-        s_dot_l, s_dot_u, s_2dot_l, s_2dot_u = 0, 1, 0, 1
+        s_dot_l, s_dot_u = 0, 1
 
         if not ignore_beta:
             # need to reverse inequality if we have a negative
@@ -91,20 +99,34 @@ class TimeScaler:
             s_dot_l = max(s_dot_l, self.phi_2dot_b[lower] / dphi_dot)
             s_dot_u = min(s_dot_u, self.phi_2dot_b[upper] / dphi_dot)
 
-        if not ignore_beta:
-            # apply constraint on second derivative
-            # must calculate here as it depends on the value of s_dot, which
-            # in turn is defined by the value of s_dot_u
-            s_dot = s_dot_u  # we pick the maximum value for s_dot
-            (lower, upper) = (1, 0) if dbeta < 0 else (0, 1)
-            s_2dot_l = max(
-                s_2dot_l, (self.beta_2dot_b[lower] - d2beta * (s_dot ** 2)) / dbeta
-            )
-            s_2dot_u = min(
-                s_2dot_u, (self.beta_2dot_b[upper] - d2beta * (s_dot ** 2)) / dbeta
-            )
+        return s_dot_l, s_dot_u
 
-        return s_dot_l, s_dot_u, s_2dot_l, s_2dot_u
+    def compute_module_s_2dot_bounds(self, dbeta: float, d2beta: float, s_dot: float):
+
+        if (in_range(dbeta, self.beta_dot_b)
+                and in_range(d2beta, self.beta_2dot_b)):
+            # constraits in 35aand c are satisfied, no scaling required
+            return 0, 1
+
+        s_2dot_l, s_2dot_u = 0, 1
+
+        ignore_beta = np.isclose(dbeta, 0, atol=self.ignore_beta_thresh).all()
+
+        if ignore_beta:
+            return 0, 1
+
+        # apply constraint on second derivative
+        # must calculate here as it depends on the value of s_dot, which
+        # in turn is defined by the value of s_dot_u
+        (lower, upper) = (1, 0) if dbeta < 0 else (0, 1)
+        s_2dot_l = max(
+            s_2dot_l, (self.beta_2dot_b[lower] - d2beta * (s_dot ** 2)) / dbeta
+        )
+        s_2dot_u = min(
+            s_2dot_u, (self.beta_2dot_b[upper] - d2beta * (s_dot ** 2)) / dbeta
+        )
+
+        return s_2dot_l, s_2dot_u
 
     def compute_scaling_parameters(
         self, s_dot_l: float, s_dot_u: float, s_2dot_l: float, s_2dot_u: float
