@@ -15,10 +15,20 @@ class Controller:
     this is the *time* derivative in a variable, indicated by a dot above the
     symbol in the paper. d2 or 2dot indicates second derivative.
     """
-    def __init__(self, modules_alpha: np.ndarray, modules_l: np.ndarray,
-                 modules_b: np.ndarray, modules_r: List, epsilon_init: np.ndarray, beta_bounds: List,
-                 beta_dot_bounds: List, beta_2dot_bounds: List,
-                 phi_dot_bounds: List, phi_2dot_bounds: List):
+
+    def __init__(
+        self,
+        modules_alpha: np.ndarray,
+        modules_l: np.ndarray,
+        modules_b: np.ndarray,
+        modules_r: List,
+        epsilon_init: np.ndarray,
+        beta_bounds: List,
+        beta_dot_bounds: List,
+        beta_2dot_bounds: List,
+        phi_dot_bounds: List,
+        phi_2dot_bounds: List,
+    ):
         """
         Initialize the Estimator object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
@@ -52,13 +62,20 @@ class Controller:
 
         self.icre = Estimator(epsilon_init, self.alpha, self.l, self.b)
 
-        self.path_planner = PathPlanner(self.alpha, self.l, phi_dot_bounds,
-                                        k_lmda=1, k_mu=1)
+        self.path_planner = PathPlanner(
+            self.alpha, self.l, phi_dot_bounds, k_lmda=1, k_mu=1
+        )
         self.kinematic_model = KinematicModel(self.alpha, self.l, self.b, k_beta=1)
         self.scaler = TimeScaler(beta_dot_bounds, beta_2dot_bounds, phi_2dot_bounds)
 
-    def control_step(self, modules_beta: np.ndarray, modules_phi_dot: np.ndarray,
-                     lmda_d: np.ndarray, mu_d: float, delta_t: float):
+    def control_step(
+        self,
+        modules_beta: np.ndarray,
+        modules_phi_dot: np.ndarray,
+        lmda_d: np.ndarray,
+        mu_d: float,
+        delta_t: float,
+    ):
         """
         Perform a control step.
         :param modules_beta: Measured angles for each module.
@@ -80,32 +97,40 @@ class Controller:
                 lmda_d, lmda_e, mu_d, mu_e, k_b
             )
 
-            dbeta, d2beta, phi_dot_p, dphi_dot_p = \
-                self.kinematic_model.compute_actuators_motion(dlmda, d2lmda, dmu)
+            dbeta, d2beta, phi_dot_p, dphi_dot_p = self.kinematic_model.compute_actuators_motion(
+                dlmda, d2lmda, dmu
+            )
 
-            s_dot_l, s_dot_u, s_2dot_l, s_2dot_u = \
-                self.scaler.compute_scaling_bounds(dbeta, d2beta, dphi_dot_p)
+            s_dot_l, s_dot_u, s_2dot_l, s_2dot_u = self.scaler.compute_scaling_bounds(
+                dbeta, d2beta, dphi_dot_p
+            )
 
             if s_dot_l <= s_dot_u and s_2dot_l <= s_2dot_u:
                 backtrack = False
             else:
                 k_b = self.update_backtracking_parameter(k_b)
 
-        self.scaler.compute_scaling_parameters(
-            s_dot_l, s_dot_u, s_2dot_l, s_2dot_u)
+        self.scaler.compute_scaling_parameters(s_dot_l, s_dot_u, s_2dot_l, s_2dot_u)
         beta_dot, beta_2dot, phi_2dot_p = self.scaler.scale_motion(
-            dbeta, d2beta, dphi_dot_p)
+            dbeta, d2beta, dphi_dot_p
+        )
 
         beta_c, phi_dot_c = self.integrate_motion(
-            beta_dot, beta_2dot, phi_dot_p, phi_2dot_p, modules_beta, delta_t)
+            beta_dot, beta_2dot, phi_dot_p, phi_2dot_p, modules_beta, delta_t
+        )
 
         return beta_c, phi_dot_c, xi_e
         # return np.zeros(shape=(self.n_modules,)), np.zeros(shape=(self.n_modules,))
 
-
-    def integrate_motion(self, beta_dot: np.ndarray, beta_2dot: np.ndarray,
-                         phi_dot: np.ndarray, phi_2dot: np.ndarray,
-                         beta_e: np.ndarray, delta_t: float):
+    def integrate_motion(
+        self,
+        beta_dot: np.ndarray,
+        beta_2dot: np.ndarray,
+        phi_dot: np.ndarray,
+        phi_2dot: np.ndarray,
+        beta_e: np.ndarray,
+        delta_t: float,
+    ):
         """
         Integrate the motion to produce the beta and phi_dot commands.
         :param beta_dot: command for the module's angular velocity.
@@ -118,14 +143,16 @@ class Controller:
         commands)
         """
 
-        beta_c = beta_e + beta_dot * delta_t + 1/2 * beta_2dot * (delta_t ** 2)  # 40a
+        beta_c = beta_e + beta_dot * delta_t + 1 / 2 * beta_2dot * (delta_t ** 2)  # 40a
 
-        phi_dot_c = ((phi_dot - self.b / self.r * beta_dot)
-                     + (phi_2dot - self.b / self.r * beta_2dot) * delta_t)  # 40b
+        phi_dot_c = (phi_dot - self.b / self.r * beta_dot) + (
+            phi_2dot - self.b / self.r * beta_2dot
+        ) * delta_t  # 40b
 
         beta_c = np.clip(beta_c, self.beta_bounds[0], self.beta_bounds[1])  # 41a
 
-        phi_dot_c = np.clip(phi_dot_c, self.phi_dot_bounds[0],
-                            self.phi_dot_bounds[1])  # 41b
+        phi_dot_c = np.clip(
+            phi_dot_c, self.phi_dot_bounds[0], self.phi_dot_bounds[1]
+        )  # 41b
 
         return beta_c, phi_dot_c
