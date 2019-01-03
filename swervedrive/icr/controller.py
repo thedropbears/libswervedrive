@@ -66,7 +66,9 @@ class Controller:
         self.path_planner = PathPlanner(
             self.alpha, self.l, phi_dot_bounds, k_lmda=1, k_mu=1
         )
-        self.kinematic_model = KinematicModel(self.alpha, self.l, self.b, self.r, k_beta=1)
+        self.kinematic_model = KinematicModel(
+            self.alpha, self.l, self.b, self.r, k_beta=1
+        )
         self.scaler = TimeScaler(beta_dot_bounds, beta_2dot_bounds, phi_2dot_bounds)
 
     def control_step(
