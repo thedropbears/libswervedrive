@@ -21,7 +21,7 @@ class Controller:
         modules_alpha: np.ndarray,
         modules_l: np.ndarray,
         modules_b: np.ndarray,
-        modules_r: List,
+        modules_r: np.ndarray,
         epsilon_init: np.ndarray,
         beta_bounds: List,
         beta_dot_bounds: List,
@@ -38,6 +38,7 @@ class Controller:
         the origin of the chassis frame
         :param modules_b: distance from the axis of rotation of each module to
         it's contact with the ground.
+        :param modules_r: radii of the wheels (m).
         :param epsilon_init: Initial epsilon value (position) of the robot.
         :param beta_bounds: Min/max allowable value for steering angle, in rad.
         :param beta_dot_bounds: Min/max allowable value for rotation rate of
@@ -65,7 +66,7 @@ class Controller:
         self.path_planner = PathPlanner(
             self.alpha, self.l, phi_dot_bounds, k_lmda=1, k_mu=1
         )
-        self.kinematic_model = KinematicModel(self.alpha, self.l, self.b, k_beta=1)
+        self.kinematic_model = KinematicModel(self.alpha, self.l, self.b, self.r, k_beta=1)
         self.scaler = TimeScaler(beta_dot_bounds, beta_2dot_bounds, phi_2dot_bounds)
 
     def control_step(
@@ -98,7 +99,7 @@ class Controller:
             )
 
             dbeta, d2beta, phi_dot_p, dphi_dot_p = self.kinematic_model.compute_actuators_motion(
-                dlmda, d2lmda, dmu
+                lmda_e, dlmda, d2lmda, mu_e, dmu
             )
 
             s_dot_l, s_dot_u, s_2dot_l, s_2dot_u = self.scaler.compute_scaling_bounds(
@@ -143,16 +144,27 @@ class Controller:
         commands)
         """
 
-        beta_c = beta_e + beta_dot * delta_t + 1 / 2 * beta_2dot * (delta_t ** 2)  # 40a
-
         phi_dot_c = (phi_dot - self.b / self.r * beta_dot) + (
             phi_2dot - self.b / self.r * beta_2dot
         ) * delta_t  # 40b
+        # Check limits
+        f = 1.0  # scaling factor
+        for pdc in phi_dot_c:
+            if pdc * f > self.phi_dot_bounds[1]:
+                f = pdc / self.phi_dot_bounds[1]
+            if pdc * f < self.phi_dot_bounds[0]:
+                f = pdc / self.phi_dot_bounds[0]
 
-        beta_c = np.clip(beta_c, self.beta_bounds[0], self.beta_bounds[1])  # 41a
+        beta_c = (
+            beta_e + f * beta_dot * delta_t + f * 1 / 2 * beta_2dot * (delta_t ** 2)
+        )  # 40a
 
-        phi_dot_c = np.clip(
-            phi_dot_c, self.phi_dot_bounds[0], self.phi_dot_bounds[1]
-        )  # 41b
+        if not all(bc < self.beta_bounds[1] for bc in beta_c) or not all(
+            bc > self.beta_bounds[0] for bc in beta_c
+        ):
+            beta_c = beta_e  # 43
+            # TODO This requires a wheel reconfig in the kinematic model
+
+        phi_dot_c = f * phi_dot_c  # 42
 
         return beta_c, phi_dot_c
