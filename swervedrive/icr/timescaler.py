@@ -82,8 +82,8 @@ class TimeScaler:
             # constraits in 35a and c are satisfied, no scaling required
             return 0, 1
 
-        ignore_beta = np.isclose(dbeta, 0, atol=self.ignore_beta_thresh).all()
-        ignore_phi = np.isclose(dphi_dot, 0, atol=self.ignore_phi_thresh).all()
+        ignore_beta = np.isclose(dbeta, 0, atol=self.ignore_beta_thresh)
+        ignore_phi = np.isclose(dphi_dot, 0, atol=self.ignore_phi_thresh)
 
         s_dot_l, s_dot_u = 0, 1
 
@@ -110,7 +110,7 @@ class TimeScaler:
 
         s_2dot_l, s_2dot_u = 0, 1
 
-        ignore_beta = np.isclose(dbeta, 0, atol=self.ignore_beta_thresh).all()
+        ignore_beta = np.isclose(dbeta, 0, atol=self.ignore_beta_thresh)
 
         if ignore_beta:
             return 0, 1
