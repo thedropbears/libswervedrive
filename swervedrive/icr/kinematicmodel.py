@@ -1,6 +1,5 @@
 from enum import Enum
 import numpy as np
-import math
 
 
 class KinematicModel:
