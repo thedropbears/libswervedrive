@@ -162,13 +162,17 @@ class Controller:
         fd = 1.0  # scaling factor
         for pdc in phi_dot_c:
             if pdc * fd > self.phi_dot_bounds[1]:
-                fd = pdc / self.phi_dot_bounds[1]
+                fd = self.phi_dot_bounds[1] / pdc
             if pdc * fd < self.phi_dot_bounds[0]:
-                fd = pdc / self.phi_dot_bounds[0]
-
-        beta_c = (
-            beta_e + fd * beta_dot * delta_t + fd * 1 / 2 * beta_2dot * (delta_t ** 2)
-        )  # 40a
+                fd = self.phi_dot_bounds[0] / pdc
+        # Also check that we respect the rotation rate limits
+        delta_beta_c = beta_dot * delta_t + 1 / 2 * beta_2dot * (delta_t ** 2)
+        for dbc in delta_beta_c:
+            if dbc * fd > self.beta_dot_bounds[1] * delta_t:
+                fd = self.beta_dot_bounds[1] * delta_t / dbc
+            if dbc * fd < self.beta_dot_bounds[0] * delta_t:
+                fd = self.beta_dot_bounds[0] * delta_t / dbc
+        beta_c = beta_e + fd * delta_beta_c  # 40a
         phi_dot_c = fd * phi_dot_c  # 42
 
         if not all(bc < self.beta_bounds[1] for bc in beta_c) or not all(

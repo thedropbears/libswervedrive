@@ -44,8 +44,14 @@ def test_respect_velocity_bounds(unlimited_rotation_controller):
         )
         delta_beta = beta_cmd - beta_prev
         # Checked limits are respected
-        assert all((db) >= unlimited_rotation_controller.beta_dot_bounds[0] * dt for db in delta_beta)
-        assert all((db) <= unlimited_rotation_controller.beta_dot_bounds[1] * dt for db in delta_beta)
+        assert all(
+            (db) >= unlimited_rotation_controller.beta_dot_bounds[0] * dt
+            for db in delta_beta
+        ), delta_beta
+        assert all(
+            (db) <= unlimited_rotation_controller.beta_dot_bounds[1] * dt
+            for db in delta_beta
+        ), delta_beta
         # Check if we have hit our desired target (within some tolerance)
         if all(abs(db) < 1e-3 for db in delta_beta):
             break
