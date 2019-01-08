@@ -33,7 +33,6 @@ class Estimator:
         self.b = modules_b
         self.n_modules = len(self.alpha)
         self.epsilon_init = epsilon_init
-        print(f'Real controller ICR Initialised.\nalpha {self.alpha}\nl{self.l}\nb{self.b}')
 
         self.a = np.zeros(shape=(3, self.n_modules))
         self.a_orth = np.zeros(shape=(3, self.n_modules))
@@ -81,15 +80,11 @@ class Estimator:
         chassis frame origin.)
         :returns: our estimate of ICR as the array (u, v, w)^T.
         """
-        print(f'Estimate_lmda started q_in {q}')
         starting_points = self.select_starting_points(q)
         found = False
         closest_lmda = None
         closest_dist = None
         for lmda_start in starting_points:
-            print(
-                f"iterate over sp, starting dist {np.linalg.norm(self.flip_wheel(q, self.S(lmda_start)))}"
-            )
             lmda = lmda_start
             if closest_lmda is None:
                 closest_lmda = lmda_start
@@ -120,13 +115,11 @@ class Estimator:
                     ):
                         # appears the algorithm has diverged as we are not
                         # improving
-                        print('Diverge')
                         found = False
                         break
                     else:
                         found = np.linalg.norm(lmda - lmda_t) < self.eta_lmda
                         distance = np.linalg.norm(self.flip_wheel(q, S_lmda))
-                        print(f"Found {found} Distance {distance}")
                         if distance < closest_dist:
                             closest_lmda = lmda_t
                             closest_dist = distance
@@ -134,8 +127,8 @@ class Estimator:
                     if found:
                         break
             if found:
-                return lmda
-        return closest_lmda
+                return np.reshape(lmda, (len(lmda),))
+        return np.reshape(closest_lmda, (len(closest_lmda),))
 
     def select_starting_points(self, q: np.ndarray):
         """
@@ -169,7 +162,6 @@ class Estimator:
                 if p_1.dot(p_2) / np.linalg.norm(p_1) * np.linalg.norm(p_2) == 1:
                     # the sine of the dot product is zero i.e. they are co-linear:
                     # Throwout cases where the two wheels being compared are co-linear
-                    print(f"wheels {i} and {j} are co-linear")
                     continue
                 c /= np.linalg.norm(c)
                 if c[2] < 0:
@@ -177,8 +169,6 @@ class Estimator:
                 dist = np.linalg.norm(self.flip_wheel(q, self.S(c)))
                 starting_points.append([c, dist])
         starting_points.sort(key=lambda point: point[1])
-        for sp in range(len(starting_points)):
-            print(f"starting point {starting_points[sp]}")
         sp_arr = [p[0].reshape(3, 1) for p in starting_points]
         return sp_arr
 
