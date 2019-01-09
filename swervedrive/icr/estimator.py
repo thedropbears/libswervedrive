@@ -51,27 +51,6 @@ class Estimator:
             self.l_v[:,i] = np.array([0, 0, self.l[i]])
         self.flipped = [None] * self.n_modules
 
-    def compute_odometry(self, lmda_e: np.ndarray, mu_e: float, delta_t: float):
-        """
-        Update our estimate of epsilon (twist position) based on the new ICR
-        estimate.
-        :param lmda_e: the estimate of the ICR in h-space.
-        :param mu_e: estimate of the position of the robot about the ICR.
-        :param delta_t: time since the odometry was last updated.
-        """
-
-    def estimate_mu(self, phi_dot: np.ndarray, lmda_e):
-        """
-        Find the rotational position of the robot about the ICR.
-        :param phi_dot: array of angular velocities of the wheels.
-        :param lmda_e: the estimate of the ICR in h-space.
-        :returns: the estimate of mu (float).
-        """
-        # this requires solving equation (22) from the control paper, i think
-        # we may need to look into whether this is valid for a system with no
-        # wheel coupling
-        return 0.
-
     def estimate_lmda(self, q: np.ndarray):
         """
         Find the ICR given the steering angles.
@@ -127,8 +106,8 @@ class Estimator:
                     if found:
                         break
             if found:
-                return np.reshape(lmda, (len(lmda),))
-        return np.reshape(closest_lmda, (len(closest_lmda),))
+                return np.reshape(lmda, (-1,))
+        return np.reshape(closest_lmda, (-1,))
 
     def select_starting_points(self, q: np.ndarray):
         """

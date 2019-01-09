@@ -34,16 +34,18 @@ class KinematicModel:
         self.k_beta = k_beta
         self.r = np.reshape(r, (n, 1))
 
-        self.a = np.array([np.cos(alpha), np.sin(alpha), [0] * n])
-        self.a_orth = np.array([-np.sin(alpha), np.cos(alpha), [0] * n])
+        self.a = np.array([np.cos(alpha), np.sin(alpha), [0.0] * n])
+        self.a_orth = np.array([-np.sin(alpha), np.cos(alpha), [0.0] * n])
         self.s = np.array(
-            [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha)), [1] * n]
+            [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha)), [1.0] * n]
         )
         self.b = np.reshape(b, (n, 1))
         self.l = np.reshape(l, (n, 1))
-        self.b_vector = np.array([[0] * n, [0] * n, b])
-        self.l_vector = np.array([[0] * n, [0] * n, l])
+        self.b_vector = np.array([[0.0] * n, [0.0] * n, b])
+        self.l_vector = np.array([[0.0] * n, [0.0] * n, l])
         self.state = KinematicModel.State.STOPPING
+
+        self.xi = np.array([[0.0] * 3])  # Odometry
 
     def compute_actuators_motion(
         self,
@@ -70,41 +72,36 @@ class KinematicModel:
                 # We are stopped, so we can reconfigure
                 self.state = KinematicModel.State.RECONFIGURING
 
-        lmda = np.reshape(lmda, (len(lmda), 1))
-        lmda_dot = np.reshape(lmda_dot, (len(lmda_dot), 1))
-        lmda_2dot = np.reshape(lmda_2dot, (len(lmda_2dot), 1))
-        s1_lmda = np.multiply(np.sin(lmda), (self.a - self.l_vector)) - np.multiply(
-            np.cos(lmda), self.a_orth
-        )
-        s2_lmda = np.multiply(np.cos(lmda), (self.a - self.l_vector)) + np.multiply(
-            np.sin(lmda), self.a_orth
-        )
+        lmda = np.reshape(lmda, (-1, 1))
+        lmda_dot = np.reshape(lmda_dot, (-1, 1))
+        lmda_2dot = np.reshape(lmda_2dot, (-1, 1))
+        s1_lmda, s2_lmda = self.s_perp(lmda)
 
-        denom = s2_lmda.transpose().dot(lmda)
+        denom = s2_lmda.T.dot(lmda)
         # Any zeros in denom represent an ICR on a wheel axis
         # Set the corresponding beta_prime and beta_2prime to 0
         denom[denom == 0] = 1e20
-        beta_prime = -(s1_lmda.transpose().dot(lmda_dot)) / denom
+        beta_prime = -(s1_lmda.T.dot(lmda_dot)) / denom
 
         beta_2prime = (
             -(
-                2 * np.multiply(beta_prime, s2_lmda.transpose().dot(lmda_dot))
-                + s1_lmda.transpose().dot(lmda_2dot)
+                2 * np.multiply(beta_prime, s2_lmda.T.dot(lmda_dot))
+                + s1_lmda.T.dot(lmda_2dot)
             )
             / denom
         )
 
         phi_dot = np.divide(
-            (s2_lmda - self.b_vector).transpose().dot(lmda) * mu
+            (s2_lmda - self.b_vector).T.dot(lmda) * mu
             - np.multiply(self.b, beta_prime),
             self.r,
         )
 
         phi_dot_prime = np.divide(
             (
-                (s2_lmda - self.b_vector)
-                .transpose()
-                .dot(np.multiply(lmda_dot, mu) + np.multiply(lmda, mu_dot))
+                (s2_lmda - self.b_vector).T.dot(
+                    np.multiply(lmda_dot, mu) + np.multiply(lmda, mu_dot)
+                )
                 - np.multiply(self.b, beta_2prime)
             ),
             self.r,
@@ -132,3 +129,56 @@ class KinematicModel:
         if np.isclose(dbeta, 0, atol=1e-2).all():
             self.state = KinematicModel.State.RUNNING
         return dbeta
+
+    def compute_odometry(self, lmda_e: np.ndarray, mu_e: float, delta_t: float):
+        """
+        Update our estimate of epsilon (twist position) based on the new ICR
+        estimate.
+        :param lmda_e: the estimate of the ICR in h-space.
+        :param mu_e: estimate of the position of the robot about the ICR.
+        :param delta_t: time since the odometry was last updated.
+        """
+        xi_dot = mu_e * np.array([[lmda_e[1]], [-lmda_e[0]], [lmda_e[2]]])  # Eq (2)
+        theta = self.xi[0, 2]
+        m3 = np.array(
+            [
+                [np.cos(theta), -np.sin(theta), 0],
+                [np.sin(theta), np.cos(theta), 0],
+                [0, 0, 1],
+            ]
+        )
+        self.xi += np.matmul(m3, xi_dot).T * delta_t  # Eq (24)
+        return self.xi
+
+    def estimate_mu(self, phi_dot: np.ndarray, lmda_e):
+        """
+        Find the rotational position of the robot about the ICR.
+        :param phi_dot: array of angular velocities of the wheels.
+        :param lmda_e: the estimate of the ICR in h-space.
+        :returns: the estimate of mu (float).
+        """
+        # this requires solving equation (22) from the control paper, i think
+        # we may need to look into whether this is valid for a system with no
+        # wheel coupling
+        lmda_e = np.reshape(lmda_e, (-1, 1))
+        phi_dot = np.reshape(phi_dot, (-1, 1))
+        s1_lmda, s2_lmda = self.s_perp(lmda_e)
+        C = np.multiply(1.0 / s2_lmda.T.dot(lmda_e), s1_lmda.T)
+        D = (s2_lmda - self.b_vector).T.dot(lmda_e) / self.r
+        # Build the matrix
+        K_lmda = np.block([[lmda_e.T, 0.0], [self.b / self.r * C, D]])
+        phi_dot_augmented = np.block([[0], [phi_dot]])
+        state = np.linalg.lstsq(K_lmda, phi_dot_augmented, rcond=None)[0]
+        mu = state[-1, 0]
+        return mu
+
+    def s_perp(self, lmda: np.ndarray):
+        s = np.dot(self.a_orth.T, lmda)
+        c = np.dot((self.a - self.l_vector).T, lmda)
+        s1_lmda = (
+            np.multiply(s, (self.a - self.l_vector).T) - np.multiply(c, self.a_orth.T)
+        ).T
+        s2_lmda = (
+            np.multiply(c, (self.a - self.l_vector).T) + np.multiply(s, self.a_orth.T)
+        ).T
+        return s1_lmda, s2_lmda
