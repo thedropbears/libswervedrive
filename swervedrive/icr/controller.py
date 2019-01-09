@@ -97,7 +97,7 @@ class Controller:
 
         while backtrack:
             dlmda, d2lmda, dmu = self.kinematic_model.compute_chassis_motion(
-                lmda_d, lmda_e, mu_d, mu_e, k_b, k_lmda=1, k_mu=1
+                lmda_d, lmda_e, mu_d, mu_e, k_b, self.phi_dot_bounds, k_lmda=1, k_mu=1
             )
 
             dbeta, d2beta, phi_dot_p, dphi_dot_p = self.kinematic_model.compute_actuators_motion(
