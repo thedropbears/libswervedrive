@@ -34,16 +34,18 @@ class KinematicModel:
         self.k_beta = k_beta
         self.r = np.reshape(r, (n, 1))
 
-        self.a = np.array([np.cos(alpha), np.sin(alpha), [0] * n])
-        self.a_orth = np.array([-np.sin(alpha), np.cos(alpha), [0] * n])
+        self.a = np.array([np.cos(alpha), np.sin(alpha), [0.0] * n])
+        self.a_orth = np.array([-np.sin(alpha), np.cos(alpha), [0.0] * n])
         self.s = np.array(
-            [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha)), [1] * n]
+            [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha)), [1.0] * n]
         )
         self.b = np.reshape(b, (n, 1))
         self.l = np.reshape(l, (n, 1))
-        self.b_vector = np.array([[0] * n, [0] * n, b])
-        self.l_vector = np.array([[0] * n, [0] * n, l])
+        self.b_vector = np.array([[0.0] * n, [0.0] * n, b])
+        self.l_vector = np.array([[0.0] * n, [0.0] * n, l])
         self.state = KinematicModel.State.STOPPING
+
+        self.xi = np.array([[0.0] * 3])  # Odometry
 
     def compute_actuators_motion(
         self,
@@ -136,6 +138,18 @@ class KinematicModel:
         :param mu_e: estimate of the position of the robot about the ICR.
         :param delta_t: time since the odometry was last updated.
         """
+        xi_dot = mu_e * np.array([[lmda_e[1]], [-lmda_e[0]], [lmda_e[2]]])  # Eq (2)
+        theta = self.xi[0, 2]
+        m3 = np.array(
+            [
+                [np.cos(theta), -np.sin(theta), 0],
+                [np.sin(theta), np.cos(theta), 0],
+                [0, 0, 1],
+            ]
+        )
+        np.matmul(m3, xi_dot)
+        self.xi += np.matmul(m3, xi_dot).T * delta_t  # Eq (24)
+        return self.xi
 
     def estimate_mu(self, phi_dot: np.ndarray, lmda_e):
         """

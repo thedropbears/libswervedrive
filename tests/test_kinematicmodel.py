@@ -125,3 +125,38 @@ def test_estimate_mu(kinematic_model):
         "\nCalculated mu: %f,\nexpected: %f\nlambda: %s"
         % (mu, expected * kinematic_model.r[0], lmda)
     )
+
+
+def test_compute_odometry(kinematic_model):
+    x_dot = 1.0
+    y_dot = 1.0
+    theta_dot = 0.0
+    mu = np.linalg.norm([x_dot, y_dot, theta_dot])
+    lmda = np.array([-y_dot, x_dot, theta_dot]) / mu
+    dt = 0.1
+
+    xi = kinematic_model.compute_odometry(lmda, mu, dt)
+    assert np.isclose(xi, np.array([x_dot * dt, y_dot * dt, 0.0]), atol=1e-2).all()
+
+    # Reset the odometry
+    kinematic_model.xi[0, 0] = kinematic_model.xi[0, 1] = 0.0
+    kinematic_model.xi[0, 2] = math.pi / 2
+
+    xi = kinematic_model.compute_odometry(lmda, mu, dt)
+    assert np.isclose(
+        xi, np.array([-x_dot * dt, y_dot * dt, math.pi / 2]), atol=1e-2
+    ).all()
+
+    # Reset the odometry
+    kinematic_model.xi[0, 0] = kinematic_model.xi[0, 1] = 0.0
+    kinematic_model.xi[0, 2] = math.pi / 2
+
+    x_dot = 1.0
+    y_dot = 0.1
+    theta_dot = 1.0
+    mu = np.linalg.norm([x_dot, y_dot, theta_dot])
+    lmda = np.array([-y_dot, x_dot, theta_dot]) / mu
+    xi = kinematic_model.compute_odometry(lmda, mu, dt)
+    xi = kinematic_model.compute_odometry(lmda, mu, dt)
+    assert xi[0, 0] < x_dot * dt * 2
+    assert xi[0, 1] > y_dot * dt * 2
