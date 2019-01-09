@@ -20,11 +20,11 @@ class KinematicModel:
         Initialize the KinematicModel object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
         :param alpha: array containing the angle to each of the modules,
-        measured counter clockwise from the x-axis (rad).
+            measured counter clockwise from the x-axis (rad).
         :param l: distance to the axis of rotation of each module from
-        the origin of the chassis frame (m).
+            the origin of the chassis frame (m).
         :param b: distance from the axis of rotation of each module to
-        it's contact with the ground (m).
+            it's contact with the ground (m).
         :param r: radii of wheels (m).
         :param k_beta: the gain for wheel reconfiguration.
         """
@@ -63,8 +63,8 @@ class KinematicModel:
         :param mu: mu (rad/s).
         :param mu_dot: derivative of mu (rad/s^2).
         :returns: first and second derivatives of the actuators' positions, as
-        arrays: (beta_prime, beta_2prime, phi_dot, phi_dot_prime) (phi_dot is a already a time
-        derivative as the relevant constraints are applied in the path planner).
+            arrays: (beta_prime, beta_2prime, phi_dot, phi_dot_prime) (phi_dot is a already a time
+            derivative as the relevant constraints are applied in the path planner).
         """
 
         if self.state == KinematicModel.State.STOPPING:

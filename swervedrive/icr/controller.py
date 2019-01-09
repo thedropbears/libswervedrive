@@ -33,22 +33,22 @@ class Controller:
         Initialize the Estimator object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
         :param modules_alpha: array containing the angle to each of the modules,
-        measured counter clockwise from the x-axis.
+            measured counter clockwise from the x-axis.
         :param modules_l: distance to the axis of rotation of each module from
-        the origin of the chassis frame
+            the origin of the chassis frame
         :param modules_b: distance from the axis of rotation of each module to
-        it's contact with the ground.
+            it's contact with the ground.
         :param modules_r: radii of the wheels (m).
         :param epsilon_init: Initial epsilon value (position) of the robot.
         :param beta_bounds: Min/max allowable value for steering angle, in rad.
         :param beta_dot_bounds: Min/max allowable value for rotation rate of
-        modules, in rad/s
+            modules, in rad/s
         :param beta_2dot_bounds: Min/max allowable value for the angular
-        acceleration of the modules, in rad/s^2.
+            acceleration of the modules, in rad/s^2.
         :param phi_dot_bounds: Min/max allowable value for rotation rate of
-        module wheels, in rad/s
+            module wheels, in rad/s
         :param phi_2dot_bounds: Min/max allowable value for the angular
-        acceleration of the module wheels, in rad/s^2.
+            acceleration of the module wheels, in rad/s^2.
         """
         self.alpha = modules_alpha
         self.l = modules_l
@@ -153,7 +153,7 @@ class Controller:
         :param beta_e: the current measured beta values (angles) of the modules.
         :param delta_t: timestep over which the command will be executed.
         :returns: beta_c, phi_dot_c (module angle and wheel angular velocity
-        commands)
+            commands)
         """
 
         phi_dot_c = (phi_dot - self.b / self.r * beta_dot) + (

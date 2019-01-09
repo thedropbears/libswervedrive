@@ -9,11 +9,11 @@ class PathPlanner:
         Initialize the PathPlanner object. The order in the arrays
         must be preserved throughout all arguments passed to this object.
         :param modules_alpha: array containing the angle to each of the modules,
-        measured counter clockwise from the x-axis.
+            measured counter clockwise from the x-axis.
         :param modules_l: distance to the axis of rotation of each module from
-        the origin of the chassis frame
+            the origin of the chassis frame
         :param dphi_bounds: Min/max allowable value for rotation rate of
-        module wheels, in rad/s
+            module wheels, in rad/s
         :param k_lmda: Proportional gain for the movement of lmda. Must be >=1
         :param k_mu: Proportional gain for movement of mu. Must be >=1
         """
