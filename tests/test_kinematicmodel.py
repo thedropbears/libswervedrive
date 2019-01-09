@@ -70,8 +70,8 @@ def test_compute_actuators_motion(kinematic_model):
 
 def test_singularity_on_wheel(kinematic_model):
     lmda = cartesian_to_lambda(1, 0)  # this is the location of the first wheel
-    lmda_dot = np.array([0, 0, 1])
-    lmda_2dot = np.array([0, 0, -1])
+    lmda_dot = np.array([0, 2, 1])
+    lmda_2dot = np.array([0, -1, -1])
     mu = 1.0
     mu_dot = 1.0
 
