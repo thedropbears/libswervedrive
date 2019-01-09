@@ -168,7 +168,7 @@ class KinematicModel:
         # Build the matrix
         K_lmda = np.block([[lmda_e.T, 0.0], [self.b / self.r * C, D]])
         phi_dot_augmented = np.block([[0], [phi_dot]])
-        state = np.linalg.lstsq(K_lmda, phi_dot_augmented)[0]
+        state = np.linalg.lstsq(K_lmda, phi_dot_augmented, rcond=None)[0]
         mu = state[-1, 0]
         return mu
 
