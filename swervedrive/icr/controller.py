@@ -121,7 +121,8 @@ class Controller:
             if s_dot_l <= s_dot_u and s_2dot_l <= s_2dot_u:
                 backtrack = False
             else:
-                k_b = self.update_backtracking_parameter(k_b)
+                # update backtracking parameter - end of section 3.4
+                k_b /= 2
 
         self.scaler.compute_scaling_parameters(s_dot_l, s_dot_u, s_2dot_l, s_2dot_u)
         beta_dot, beta_2dot, phi_2dot_p = self.scaler.scale_motion(
