@@ -147,7 +147,6 @@ class KinematicModel:
                 [0, 0, 1],
             ]
         )
-        np.matmul(m3, xi_dot)
         self.xi += np.matmul(m3, xi_dot).T * delta_t  # Eq (24)
         return self.xi
 
