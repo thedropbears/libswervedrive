@@ -41,31 +41,36 @@ def test_compute_actuators_motion(kinematic_model):
     a = [1 0 0]T
     a_orth = [0 1 0]T
     l = [0 0 1]T
-    s1_lmda = [0 0 sin(1)].[1 0 -1] - [1 1 cos(1)].[0 1 0]
-        = [0 0 -sin(1)] - [0 1 0]
-        = [0 -1 -sin(1)]
-        ~ [0 -1 -0.84]
-    s2_lmda = [1 1 cos(1)].[1 0 -1] + [1 1 sin(1)].[0 1 0]
-        = [1 0 -cos(1)] + [0 1 0]
-        ~ [1 1 -0.54]
-    beta_prime = -[0 -1 -0.84].[0 0 1]/[1 1 -0.54].[0 0 1]
-        = - -0.84/-0.54
-        ~ -1.557
-    beta_2prime = (-2*-1.557*[1 1 -0.54].[0 0 1]+[0 -1 -0.84].[0 0 -1]) /
-        [1 1 -0.54].[0 0 1]
-        = (3.115*-0.54+0.84)/-0.54
-        ~ 4.672
-    phi_dot = ([1 1 -0.540]-[0 0 0]).[0 0 1]*1-0*-1.557)/0.1
-        = -0.540/0.1
-        ~ -5.40
-    phi_dot_prime = ([1 1 -0.540]-[0 0 0]).([0 0 1]*1+[0 0 1]*1)-0*4.672)/0.1
-        = ([1 1 -0.54].[0 0 2])/0.1
-        ~ -10.8
+    sin(beta) = [0 1 0].[0 0 1]
+        = 0
+    cos(beta) = ([1 0 0]-[0 0 1]).[0 0 1]
+        = [1 0 -1].[0 0 1]
+        = -1
+
+    s1_lmda = sin(b)[1 0 -1] - cos(b)[0 1 0]
+        = [0 0 0] - [0 1 0]
+        = [0 -1 0]
+    s2_lmda = cos(b)[1 0 -1] + sin(b)[0 1 0]
+        = -1*[1 0 -1] + [0 0 0]
+        = [-1 0 1]
+    beta_prime = -[0 -1 0].[0 0 1]/[-1 0 1].[0 0 1]
+        = - 0/1
+        = 0
+    beta_2prime = (-2*0*[-1 0 1].[0 0 1]+[0 -1 0].[0 0 -1]) /
+        [-1 0 1].[0 0 1]
+        = (0+0)/1
+        = 0
+    phi_dot = ([-1 0 1]-[0 0 0]).[0 0 1]*1-0*0)/0.1
+        = 1/0.1
+        = 10
+    phi_dot_prime = ([-1 0 1]-[0 0 0]).([0 0 1]*1+[0 0 1]*1)-0*0)/0.1
+        = ([-1 0 1].[0 0 2])/0.1
+        = 20
     """
-    assert np.isclose(beta_prime[0], -1.557, atol=1e-2)
-    assert np.isclose(beta_2prime[0], 4.672, atol=1e-2)
-    assert np.isclose(phi_dot[0], -5.4, atol=1e-2)
-    assert np.isclose(phi_dot_prime[0], -10.8, atol=1e-2)
+    assert np.isclose(beta_prime[0], 0.0, atol=1e-2)
+    assert np.isclose(beta_2prime[0], 0.0, atol=1e-2)
+    assert np.isclose(phi_dot[0], 10, atol=1e-2)
+    assert np.isclose(phi_dot_prime[0], 20, atol=1e-2)
 
 
 def test_singularity_on_wheel(kinematic_model):

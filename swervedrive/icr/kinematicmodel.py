@@ -75,31 +75,31 @@ class KinematicModel:
         lmda_2dot = np.reshape(lmda_2dot, (len(lmda_2dot), 1))
         s1_lmda, s2_lmda = self.s_perp(lmda)
 
-        denom = s2_lmda.transpose().dot(lmda)
+        denom = s2_lmda.T.dot(lmda)
         # Any zeros in denom represent an ICR on a wheel axis
         # Set the corresponding beta_prime and beta_2prime to 0
         denom[denom == 0] = 1e20
-        beta_prime = -(s1_lmda.transpose().dot(lmda_dot)) / denom
+        beta_prime = -(s1_lmda.T.dot(lmda_dot)) / denom
 
         beta_2prime = (
             -(
-                2 * np.multiply(beta_prime, s2_lmda.transpose().dot(lmda_dot))
-                + s1_lmda.transpose().dot(lmda_2dot)
+                2 * np.multiply(beta_prime, s2_lmda.T.dot(lmda_dot))
+                + s1_lmda.T.dot(lmda_2dot)
             )
             / denom
         )
 
         phi_dot = np.divide(
-            (s2_lmda - self.b_vector).transpose().dot(lmda) * mu
+            (s2_lmda - self.b_vector).T.dot(lmda) * mu
             - np.multiply(self.b, beta_prime),
             self.r,
         )
 
         phi_dot_prime = np.divide(
             (
-                (s2_lmda - self.b_vector)
-                .transpose()
-                .dot(np.multiply(lmda_dot, mu) + np.multiply(lmda, mu_dot))
+                (s2_lmda - self.b_vector).T.dot(
+                    np.multiply(lmda_dot, mu) + np.multiply(lmda, mu_dot)
+                )
                 - np.multiply(self.b, beta_2prime)
             ),
             self.r,
