@@ -73,12 +73,7 @@ class KinematicModel:
         lmda = np.reshape(lmda, (len(lmda), 1))
         lmda_dot = np.reshape(lmda_dot, (len(lmda_dot), 1))
         lmda_2dot = np.reshape(lmda_2dot, (len(lmda_2dot), 1))
-        s1_lmda = np.multiply(np.sin(lmda), (self.a - self.l_vector)) - np.multiply(
-            np.cos(lmda), self.a_orth
-        )
-        s2_lmda = np.multiply(np.cos(lmda), (self.a - self.l_vector)) + np.multiply(
-            np.sin(lmda), self.a_orth
-        )
+        s1_lmda, s2_lmda = self.s_perp(lmda)
 
         denom = s2_lmda.transpose().dot(lmda)
         # Any zeros in denom represent an ICR on a wheel axis
@@ -152,6 +147,13 @@ class KinematicModel:
         # this requires solving equation (22) from the control paper, i think
         # we may need to look into whether this is valid for a system with no
         # wheel coupling
-        return 0.
+        return 0.0
 
-
+    def s_perp(self, lmda: np.ndarray):
+        s1_lmda = np.multiply(np.sin(lmda), (self.a - self.l_vector)) - np.multiply(
+            np.cos(lmda), self.a_orth
+        )
+        s2_lmda = np.multiply(np.cos(lmda), (self.a - self.l_vector)) + np.multiply(
+            np.sin(lmda), self.a_orth
+        )
+        return s1_lmda, s2_lmda
