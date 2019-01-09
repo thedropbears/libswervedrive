@@ -5,9 +5,13 @@ import numpy as np
 import pytest
 
 
+def cartesian_to_lambda(x, y):
+    return np.reshape(1 / np.linalg.norm([x, y, 1]) * np.array([x, y, 1]), (3, 1))
+
+
 @pytest.fixture
 def kinematic_model():
-    alpha = np.array([0, math.pi / 2, math.pi * 3 / 4, math.pi])
+    alpha = np.array([0, math.pi / 2, math.pi, math.pi * 3 / 2])
     l = np.array([1.0] * 4)
     b = np.array([0.0] * 4)
     r = np.array([0.1] * 4)
@@ -65,9 +69,6 @@ def test_compute_actuators_motion(kinematic_model):
 
 
 def test_singularity_on_wheel(kinematic_model):
-    def cartesian_to_lambda(x, y):
-        return 1 / np.linalg.norm([x, y, 1]) * np.array([x, y, 1])
-
     lmda = cartesian_to_lambda(1, 0)  # this is the location of the first wheel
     lmda_dot = np.array([0, 0, 1])
     lmda_2dot = np.array([0, 0, -1])
@@ -85,3 +86,28 @@ def test_singularity_on_wheel(kinematic_model):
     assert not np.isclose(beta_prime[1:], [0] * 3, atol=1e-2).any()
     assert not np.isclose(beta_2prime[1:], [0] * 3, atol=1e-2).any()
     assert not np.isclose(phi_dot[1:], [0] * 3, atol=1e-2).any()
+
+
+def test_s_perp(kinematic_model):
+    lmda = cartesian_to_lambda(0, 0)  # Centre of robot
+    beta = np.arctan(
+        kinematic_model.a_orth.transpose().dot(lmda)
+        / (kinematic_model.a - kinematic_model.l_vector).transpose().dot(lmda)
+    )
+    s_lmda = kinematic_model.s_perp(lmda)
+    expected_s1 = np.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 0, 0, 0]])
+    expected_s2 = np.array([[-1, 0, 1, 0], [0, -1, 0, 1], [1, 1, 1, 1]])
+    assert np.isclose(s_lmda[0], expected_s1).all()
+    assert np.isclose(s_lmda[1], expected_s2).all()
+
+
+def test_estimate_mu(kinematic_model):
+    lmda = cartesian_to_lambda(0, 0)  # Centre of robot
+    phi_dot = np.array([1.0, 1.0, 1.0, 1.0])
+    expected = 1.0 * 0.1 / 1.0  # rad/s
+    mu = kinematic_model.estimate_mu(phi_dot, lmda)
+    s_perp = kinematic_model.s_perp(lmda)
+    assert np.isclose(mu, expected), (
+        "\nCalculated mu: %f,\nexpected: %f\nlambda: %s\ns_perp: %s"
+        % (mu, expected, lmda, s_perp)
+    )

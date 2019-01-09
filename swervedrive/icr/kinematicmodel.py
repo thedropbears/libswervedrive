@@ -147,13 +147,25 @@ class KinematicModel:
         # this requires solving equation (22) from the control paper, i think
         # we may need to look into whether this is valid for a system with no
         # wheel coupling
-        return 0.0
+        lmda_e = np.reshape(lmda_e, (len(lmda_e), 1))
+        phi_dot = np.reshape(phi_dot, (len(phi_dot), 1))
+        s1_lmda, s2_lmda = self.s_perp(lmda_e)
+        C = np.multiply(1.0 / s2_lmda.T.dot(lmda_e), s1_lmda.T)
+        D = (s2_lmda - self.b_vector).T.dot(lmda_e) / self.r
+        # assert False, s2_lmda
+        K_lmda = np.block([[lmda_e.T, 0.0], [self.b / self.r * C, D]])
+        phi_dot_augmented = np.block([[0], [phi_dot]])
+        state = np.linalg.lstsq(K_lmda, phi_dot_augmented)[0]
+        mu = state[-1, 0]
+        return mu
 
     def s_perp(self, lmda: np.ndarray):
-        s1_lmda = np.multiply(np.sin(lmda), (self.a - self.l_vector)) - np.multiply(
-            np.cos(lmda), self.a_orth
-        )
-        s2_lmda = np.multiply(np.cos(lmda), (self.a - self.l_vector)) + np.multiply(
-            np.sin(lmda), self.a_orth
-        )
+        s = np.dot(self.a_orth.T, lmda)
+        c = np.dot((self.a - self.l_vector).T, lmda)
+        s1_lmda = (
+            np.multiply(s, (self.a - self.l_vector).T) - np.multiply(c, self.a_orth.T)
+        ).T
+        s2_lmda = (
+            np.multiply(c, (self.a - self.l_vector).T) + np.multiply(s, self.a_orth.T)
+        ).T
         return s1_lmda, s2_lmda
