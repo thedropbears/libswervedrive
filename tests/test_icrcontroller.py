@@ -34,20 +34,21 @@ def test_icrc_init(unlimited_rotation_controller):
 
 def assert_velocity_bounds(c, delta_beta, phi_dot_cmd, dt):
     # Check limits are respected
-    assert all(
-        (db) >= c.beta_dot_bounds[0] * dt
+    tol = 1e-16 # to ensure we don't go over due to a floating point error
+    assert all([
+        (db) >= (c.beta_dot_bounds[0] * dt)-tol
         for db in delta_beta
-    )
-    assert all(
-        (db) <= c.beta_dot_bounds[1] * dt
+    ])
+    assert all([
+        (db) <= (c.beta_dot_bounds[1] * dt)+tol
         for db in delta_beta
-    )
+    ])
     assert all(
-        (pc) >= c.phi_dot_bounds[0]
+        (pc) >= (c.phi_dot_bounds[0])-tol
         for pc in phi_dot_cmd
     )
     assert all(
-        (pc) <= c.phi_dot_bounds[1]
+        (pc) <= (c.phi_dot_bounds[1])+tol
         for pc in phi_dot_cmd
     )
 
