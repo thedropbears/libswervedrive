@@ -72,9 +72,9 @@ class KinematicModel:
                 # We are stopped, so we can reconfigure
                 self.state = KinematicModel.State.RECONFIGURING
 
-        lmda = np.reshape(lmda, (len(lmda), 1))
-        lmda_dot = np.reshape(lmda_dot, (len(lmda_dot), 1))
-        lmda_2dot = np.reshape(lmda_2dot, (len(lmda_2dot), 1))
+        lmda = np.reshape(lmda, (-1, 1))
+        lmda_dot = np.reshape(lmda_dot, (-1, 1))
+        lmda_2dot = np.reshape(lmda_2dot, (-1, 1))
         s1_lmda, s2_lmda = self.s_perp(lmda)
 
         denom = s2_lmda.T.dot(lmda)
@@ -160,8 +160,8 @@ class KinematicModel:
         # this requires solving equation (22) from the control paper, i think
         # we may need to look into whether this is valid for a system with no
         # wheel coupling
-        lmda_e = np.reshape(lmda_e, (len(lmda_e), 1))
-        phi_dot = np.reshape(phi_dot, (len(phi_dot), 1))
+        lmda_e = np.reshape(lmda_e, (-1, 1))
+        phi_dot = np.reshape(phi_dot, (-1, 1))
         s1_lmda, s2_lmda = self.s_perp(lmda_e)
         C = np.multiply(1.0 / s2_lmda.T.dot(lmda_e), s1_lmda.T)
         D = (s2_lmda - self.b_vector).T.dot(lmda_e) / self.r

@@ -106,8 +106,8 @@ class Estimator:
                     if found:
                         break
             if found:
-                return np.reshape(lmda, (len(lmda),))
-        return np.reshape(closest_lmda, (len(closest_lmda),))
+                return np.reshape(lmda, (-1,))
+        return np.reshape(closest_lmda, (-1,))
 
     def select_starting_points(self, q: np.ndarray):
         """
