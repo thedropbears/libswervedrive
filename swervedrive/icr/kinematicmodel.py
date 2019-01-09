@@ -152,7 +152,7 @@ class KinematicModel:
         s1_lmda, s2_lmda = self.s_perp(lmda_e)
         C = np.multiply(1.0 / s2_lmda.T.dot(lmda_e), s1_lmda.T)
         D = (s2_lmda - self.b_vector).T.dot(lmda_e) / self.r
-        # assert False, s2_lmda
+        # Build the matrix
         K_lmda = np.block([[lmda_e.T, 0.0], [self.b / self.r * C, D]])
         phi_dot_augmented = np.block([[0], [phi_dot]])
         state = np.linalg.lstsq(K_lmda, phi_dot_augmented)[0]

@@ -103,11 +103,20 @@ def test_s_perp(kinematic_model):
 
 def test_estimate_mu(kinematic_model):
     lmda = cartesian_to_lambda(0, 0)  # Centre of robot
-    phi_dot = np.array([1.0, 1.0, 1.0, 1.0])
-    expected = 1.0 * 0.1 / 1.0  # rad/s
+    expected = 1.0  # rad/s
+    phi_dot = np.array([expected * 1.0] * 4)
     mu = kinematic_model.estimate_mu(phi_dot, lmda)
-    s_perp = kinematic_model.s_perp(lmda)
-    assert np.isclose(mu, expected), (
-        "\nCalculated mu: %f,\nexpected: %f\nlambda: %s\ns_perp: %s"
-        % (mu, expected, lmda, s_perp)
+    assert np.isclose(
+        mu, expected * kinematic_model.r[0], atol=0.01
+    ).all(), "\nCalculated mu: %f,\nexpected: %f\nlambda: %s" % (mu, expected, lmda)
+
+    lmda = cartesian_to_lambda(2, 0)  # Right of robot
+    expected = 1.0  # rad/s
+    phi_dot = np.array(
+        [-expected * 1.0, -expected * 5.0 ** 0.5, expected * 3.0, expected * 5.0 ** 0.5]
+    )
+    mu = kinematic_model.estimate_mu(phi_dot, lmda)
+    assert np.isclose(mu, expected * kinematic_model.r[0], atol=0.01).all(), (
+        "\nCalculated mu: %f,\nexpected: %f\nlambda: %s"
+        % (mu, expected * kinematic_model.r[0], lmda)
     )
