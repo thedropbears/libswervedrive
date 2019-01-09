@@ -132,3 +132,26 @@ class KinematicModel:
         if np.isclose(dbeta, 0, atol=1e-2).all():
             self.state = KinematicModel.State.RUNNING
         return dbeta
+
+    def compute_odometry(self, lmda_e: np.ndarray, mu_e: float, delta_t: float):
+        """
+        Update our estimate of epsilon (twist position) based on the new ICR
+        estimate.
+        :param lmda_e: the estimate of the ICR in h-space.
+        :param mu_e: estimate of the position of the robot about the ICR.
+        :param delta_t: time since the odometry was last updated.
+        """
+
+    def estimate_mu(self, phi_dot: np.ndarray, lmda_e):
+        """
+        Find the rotational position of the robot about the ICR.
+        :param phi_dot: array of angular velocities of the wheels.
+        :param lmda_e: the estimate of the ICR in h-space.
+        :returns: the estimate of mu (float).
+        """
+        # this requires solving equation (22) from the control paper, i think
+        # we may need to look into whether this is valid for a system with no
+        # wheel coupling
+        return 0.
+
+
