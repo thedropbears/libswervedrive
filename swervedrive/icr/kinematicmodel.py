@@ -47,6 +47,30 @@ class KinematicModel:
 
         self.xi = np.array([[0.0] * 3])  # Odometry
 
+    def compute_chassis_motion(self, lmda_d: np.ndarray, lmda_e: np.ndarray,
+                               mu_d: float, mu_e: float, k_b: float,
+                               k_lmda: float, k_mu: float):
+        """
+        Compute the path to the desired state and implement control laws
+        required to produce the motion.
+        :param lmda_d: The desired ICR.
+        :param lmda_e: Estimate of the current ICR.
+        :param mu_d: Desired motion about the ICR.
+        :param mu_e: Estimate of the current motion about the ICR.
+        :param k_b: Backtracking constant.
+        :param k_lmda: Proportional gain for the movement of lmda. Must be >=1
+        :param k_mu: Proportional gain for movement of mu. Must be >=1
+        :returns: (derivative of lmda, 2nd derivative of lmda, derivative of mu)
+        """
+
+        dlmda = k_b * k_lmda * (lmda_d - (lmda_e.dot(lmda_d)) * lmda_e)
+
+        d2lmda = k_b ** 2 * k_lmda ** 2 * ((lmda_e.dot(lmda_d)) * lmda_d - lmda_e)
+
+        dmu = k_b * k_mu * (mu_d-mu_e)
+
+        return dlmda, d2lmda, dmu
+
     def compute_actuators_motion(
         self,
         lmda: np.ndarray,

@@ -1,5 +1,4 @@
 from .estimator import Estimator
-from .pathplanner import PathPlanner
 from .kinematicmodel import KinematicModel
 from .timescaler import TimeScaler
 import numpy as np
@@ -63,9 +62,6 @@ class Controller:
 
         self.icre = Estimator(epsilon_init, self.alpha, self.l, self.b)
 
-        self.path_planner = PathPlanner(
-            self.alpha, self.l, phi_dot_bounds, k_lmda=1, k_mu=1
-        )
         self.kinematic_model = KinematicModel(
             self.alpha, self.l, self.b, self.r, k_beta=1
         )
@@ -100,8 +96,8 @@ class Controller:
             lmda_d = lmda_e
 
         while backtrack:
-            dlmda, d2lmda, dmu = self.path_planner.compute_chassis_motion(
-                lmda_d, lmda_e, mu_d, mu_e, k_b
+            dlmda, d2lmda, dmu = self.kinematic_model.compute_chassis_motion(
+                lmda_d, lmda_e, mu_d, mu_e, k_b, k_lmda=1, k_mu=1
             )
 
             dbeta, d2beta, phi_dot_p, dphi_dot_p = self.kinematic_model.compute_actuators_motion(
