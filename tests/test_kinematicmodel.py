@@ -1,12 +1,8 @@
-from swervedrive.icr.kinematicmodel import KinematicModel
+from swervedrive.icr.kinematicmodel import KinematicModel, cartesian_to_lambda
 
 import math
 import numpy as np
 import pytest
-
-
-def cartesian_to_lambda(x, y):
-    return np.reshape(1 / np.linalg.norm([x, y, 1]) * np.array([x, y, 1]), (3, 1))
 
 
 @pytest.fixture
