@@ -2,6 +2,10 @@ from enum import Enum
 import numpy as np
 
 
+def cartesian_to_lambda(x, y):
+    return np.reshape(1 / np.linalg.norm([x, y, 1]) * np.array([x, y, 1]), (3, 1))
+
+
 class KinematicModel:
     class State(Enum):
         STOPPING = 1
@@ -20,11 +24,11 @@ class KinematicModel:
         Initialize the KinematicModel object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
         :param alpha: array containing the angle to each of the modules,
-        measured counter clockwise from the x-axis (rad).
+            measured counter clockwise from the x-axis (rad).
         :param l: distance to the axis of rotation of each module from
-        the origin of the chassis frame (m).
+            the origin of the chassis frame (m).
         :param b: distance from the axis of rotation of each module to
-        it's contact with the ground (m).
+            it's contact with the ground (m).
         :param r: radii of wheels (m).
         :param k_beta: the gain for wheel reconfiguration.
         """
@@ -47,6 +51,69 @@ class KinematicModel:
 
         self.xi = np.array([[0.0] * 3])  # Odometry
 
+        singularities_cartesian = np.array(
+            [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha))]
+        ).T
+        singularities_lmda = np.array(
+            [cartesian_to_lambda(s[0], s[1]).reshape(-1)
+             for s in singularities_cartesian]
+        )
+        self.singularities = np.concatenate([
+            singularities_lmda,
+            -singularities_lmda
+        ])
+
+    def compute_chassis_motion(self, lmda_d: np.ndarray, lmda_e: np.ndarray,
+                               mu_d: float, mu_e: float, k_b: float,
+                               phi_dot_bounds: float, k_lmda: float, k_mu: float):
+        """
+        Compute the path to the desired state and implement control laws
+        required to produce the motion.
+        :param lmda_d: The desired ICR.
+        :param lmda_e: Estimate of the current ICR.
+        :param mu_d: Desired motion about the ICR.
+        :param mu_e: Estimate of the current motion about the ICR.
+        :param k_b: Backtracking constant.
+        :param phi_dot_bounds: Min/max allowable value for rotation rate of
+            module wheels, in rad/s
+        :param k_lmda: Proportional gain for the movement of lmda. Must be >=1
+        :param k_mu: Proportional gain for movement of mu. Must be >=1
+        :returns: (derivative of lmda, 2nd derivative of lmda, derivative of mu)
+        """
+
+        # bound mu based on the ph_dot constraits
+        mu_min = max(self.compute_mu(lmda_d, phi_dot_bounds[0]))
+        mu_max = min(self.compute_mu(lmda_d, phi_dot_bounds[1]))
+        mu_d = max(min(mu_d, mu_max), mu_min)
+
+        # TODO: figure out what the tolerance should be
+        on_singularity = any(
+            all(np.isclose(lmda_d, s, atol=1e-2))
+            for s in self.singularities
+        )
+        if on_singularity:
+            lmda_d = lmda_e
+
+        dlmda = k_b * k_lmda * (lmda_d - (lmda_e.dot(lmda_d)) * lmda_e)
+
+        d2lmda = k_b ** 2 * k_lmda ** 2 * ((lmda_e.dot(lmda_d)) * lmda_d - lmda_e)
+
+        dmu = k_b * k_mu * (mu_d-mu_e)
+
+        return dlmda, d2lmda, dmu
+
+    def compute_mu(self, lmda, phi_dot):
+        """
+        Compute mu given lmda and phi_dot (equation 25 of control paper).
+        """
+        lmda = np.reshape(lmda, (-1, 1))
+        _, s_perp_2 = self.s_perp(lmda)
+        f_lmda = (
+            self.r
+            / (s_perp_2 - self.b_vector).T.dot(lmda)
+        ).reshape(-1)
+        return f_lmda*phi_dot
+
     def compute_actuators_motion(
         self,
         lmda: np.ndarray,
@@ -63,8 +130,8 @@ class KinematicModel:
         :param mu: mu (rad/s).
         :param mu_dot: derivative of mu (rad/s^2).
         :returns: first and second derivatives of the actuators' positions, as
-        arrays: (beta_prime, beta_2prime, phi_dot, phi_dot_prime) (phi_dot is a already a time
-        derivative as the relevant constraints are applied in the path planner).
+            arrays: (beta_prime, beta_2prime, phi_dot, phi_dot_prime) (phi_dot is a already a time
+            derivative as the relevant constraints are applied in the path planner).
         """
 
         if self.state == KinematicModel.State.STOPPING:

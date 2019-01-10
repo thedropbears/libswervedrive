@@ -1,12 +1,8 @@
-from swervedrive.icr.kinematicmodel import KinematicModel
+from swervedrive.icr.kinematicmodel import KinematicModel, cartesian_to_lambda
 
 import math
 import numpy as np
 import pytest
-
-
-def cartesian_to_lambda(x, y):
-    return np.reshape(1 / np.linalg.norm([x, y, 1]) * np.array([x, y, 1]), (3, 1))
 
 
 @pytest.fixture
@@ -95,10 +91,6 @@ def test_singularity_on_wheel(kinematic_model):
 
 def test_s_perp(kinematic_model):
     lmda = cartesian_to_lambda(0, 0)  # Centre of robot
-    beta = np.arctan(
-        kinematic_model.a_orth.transpose().dot(lmda)
-        / (kinematic_model.a - kinematic_model.l_vector).transpose().dot(lmda)
-    )
     s_lmda = kinematic_model.s_perp(lmda)
     expected_s1 = np.array([[0, -1, 0, 1], [1, 0, -1, 0], [0, 0, 0, 0]])
     expected_s2 = np.array([[-1, 0, 1, 0], [0, -1, 0, 1], [1, 1, 1, 1]])

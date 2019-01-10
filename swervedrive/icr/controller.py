@@ -1,5 +1,4 @@
 from .estimator import Estimator
-from .pathplanner import PathPlanner
 from .kinematicmodel import KinematicModel
 from .timescaler import TimeScaler
 import numpy as np
@@ -33,22 +32,22 @@ class Controller:
         Initialize the Estimator object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
         :param modules_alpha: array containing the angle to each of the modules,
-        measured counter clockwise from the x-axis.
+            measured counter clockwise from the x-axis.
         :param modules_l: distance to the axis of rotation of each module from
-        the origin of the chassis frame
+            the origin of the chassis frame
         :param modules_b: distance from the axis of rotation of each module to
-        it's contact with the ground.
+            it's contact with the ground.
         :param modules_r: radii of the wheels (m).
         :param epsilon_init: Initial epsilon value (position) of the robot.
         :param beta_bounds: Min/max allowable value for steering angle, in rad.
         :param beta_dot_bounds: Min/max allowable value for rotation rate of
-        modules, in rad/s
+            modules, in rad/s
         :param beta_2dot_bounds: Min/max allowable value for the angular
-        acceleration of the modules, in rad/s^2.
+            acceleration of the modules, in rad/s^2.
         :param phi_dot_bounds: Min/max allowable value for rotation rate of
-        module wheels, in rad/s
+            module wheels, in rad/s
         :param phi_2dot_bounds: Min/max allowable value for the angular
-        acceleration of the module wheels, in rad/s^2.
+            acceleration of the module wheels, in rad/s^2.
         """
         self.alpha = modules_alpha
         self.l = modules_l
@@ -63,9 +62,6 @@ class Controller:
 
         self.icre = Estimator(epsilon_init, self.alpha, self.l, self.b)
 
-        self.path_planner = PathPlanner(
-            self.alpha, self.l, phi_dot_bounds, k_lmda=1, k_mu=1
-        )
         self.kinematic_model = KinematicModel(
             self.alpha, self.l, self.b, self.r, k_beta=1
         )
@@ -100,8 +96,8 @@ class Controller:
             lmda_d = lmda_e
 
         while backtrack:
-            dlmda, d2lmda, dmu = self.path_planner.compute_chassis_motion(
-                lmda_d, lmda_e, mu_d, mu_e, k_b
+            dlmda, d2lmda, dmu = self.kinematic_model.compute_chassis_motion(
+                lmda_d, lmda_e, mu_d, mu_e, k_b, self.phi_dot_bounds, k_lmda=1, k_mu=1
             )
 
             dbeta, d2beta, phi_dot_p, dphi_dot_p = self.kinematic_model.compute_actuators_motion(
@@ -153,7 +149,7 @@ class Controller:
         :param beta_e: the current measured beta values (angles) of the modules.
         :param delta_t: timestep over which the command will be executed.
         :returns: beta_c, phi_dot_c (module angle and wheel angular velocity
-        commands)
+            commands)
         """
 
         phi_dot_c = (phi_dot - self.b / self.r * beta_dot) + (

@@ -16,11 +16,11 @@ class TimeScaler:
         """
         Initialize the TimeScaler object.
         :param dbeta_bounds: Min/max allowable value for rotation rate of
-        modules, in rad/s
+            modules, in rad/s
         :param d2beta_bounds: Min/max allowable value for the angular
-        acceleration of the modules, in rad/s^2.
+            acceleration of the modules, in rad/s^2.
         :param d2phi_bounds: Min/max allowable value for the angular
-        acceleration of the module wheels, in rad/s^2.
+            acceleration of the module wheels, in rad/s^2.
         """
         self.beta_dot_b = beta_dot_bounds
         self.beta_2dot_b = beta_2dot_bounds
@@ -36,9 +36,9 @@ class TimeScaler:
         :param dbeta: command for derivative of the angle of the modules.
         :param d2beta: command for second derivative of the angle of the modules.
         :param dphi_dot: command for derivative of angular velocity of the
-        module wheels.
+            module wheels.
         :returns: upper and lower scaling bounds for 1st and 2nd time derivatives
-        of s: s_dot_l, s_dot_u, s_2dot_l, s_2dot_u
+            of s: s_dot_l, s_dot_u, s_2dot_l, s_2dot_u
         """
         s_dot_l = 0
         s_dot_u = 1
@@ -70,7 +70,7 @@ class TimeScaler:
         :param dbeta: command for derivative of the angle of the modules.
         :param d2beta: command for second derivative of the angle of the modules.
         :param dphi_dot: command for derivative of angular velocity of the
-        module wheels.
+            module wheels.
         :returns: upper and lower scaling bounds for 1st time derivative
         of s: s_dot_l, s_dot_u
         """
@@ -150,7 +150,7 @@ class TimeScaler:
         :param dbeta: command for derivative of the angle of the modules.
         :param d2beta: command for second derivative of the angle of the modules.
         :param dphi_dot: command for derivative of angular velocity of the
-        module wheels.
+            module wheels.
         :returns: *time* derivatives of actuators motion beta_dot, beta_2dot, phi_2dot
         """
 

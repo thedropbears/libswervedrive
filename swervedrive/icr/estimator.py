@@ -17,13 +17,13 @@ class Estimator:
         Initialize the Estimator object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
         :param epsilon_init: the starting position estimate for the robot
-        position. Form (x, y, theta)^T.
+            position. Form (x, y, theta)^T.
         :param modules_alpha: array containing the angle to each of the modules,
-        measured counter clockwise from the x-axis.
+            measured counter clockwise from the x-axis.
         :param modules_l: distance to the axis of rotation of each module from
-        the origin of the chassis frame
+            the origin of the chassis frame
         :param modules_b: distance from the axis of rotation of each module to
-        it's contact with the ground.
+            it's contact with the ground.
         """
 
         self.epsilon = epsilon_init
@@ -55,8 +55,8 @@ class Estimator:
         """
         Find the ICR given the steering angles.
         :param q: list of angles beta between representing the steer angle
-        (measured relative to the orientation orthogonal to the line to the
-        chassis frame origin.)
+            (measured relative to the orientation orthogonal to the line to the
+            chassis frame origin.)
         :returns: our estimate of ICR as the array (u, v, w)^T.
         """
         starting_points = self.select_starting_points(q)
@@ -115,8 +115,8 @@ class Estimator:
         implementation places them at the intersection of the propulsion axis
         and orders them according to their distance to the input point.
         :param q: list of angles beta between representing the steer angle
-        (measured relative to the orientation orthogonal to the line to the
-        chassis frame origin.)
+            (measured relative to the orientation orthogonal to the line to the
+            chassis frame origin.)
         :returns: List of the top three starting points ordered according to
         their distance to the input length.
         """
@@ -157,8 +157,8 @@ class Estimator:
         estimate of the point.
         :param lmda: position of the ICR estimate
         :returns: np.ndarray with (S_u, S_v). S_u and S_v are the vectors
-        containing the derivatives of each steering angle in q with respect
-        u and v, respectively.
+            containing the derivatives of each steering angle in q with respect
+            u and v, respectively.
         """
         S_u = np.zeros(shape=(self.n_modules,))
         S_v = np.zeros(shape=(self.n_modules,))
@@ -217,14 +217,14 @@ class Estimator:
         within the sphere. If the algorithm has diverged backtrack if possible
         :param lmda: current position of the ICR estimate.
         :param delta_u: free parameter defining how much to move the ICR
-        estimate in the direction S_u.
+            estimate in the direction S_u.
         :param delta_v: free parameter defining how much to move the ICR
-        estimate in the direction S_v.
+            estimate in the direction S_v.
         :param q: list of angles beta representing the steer angle
-        (measured relative to the orientation orthogonal to the line to the
-        chassis frame origin.)
+            (measured relative to the orientation orthogonal to the line to the
+            chassis frame origin.)
         :returns: the new ICR estimate, a flag indicating divergence of the
-        algorithm for this starting point.
+            algorithm for this starting point.
         """
         lmda_t = lmda
         worse = False
@@ -262,7 +262,7 @@ class Estimator:
         the parameters were updated (when the ICR lies on a steering axis).
         :param lmda: the ICR estimate after the parameters were updated.
         :returns: if the ICR is on a structural singularity, and the wheel
-        number which the singularity is on if there is one
+            number which the singularity is on if there is one
         """
         wheel_number = None
         for i in range(self.n_modules):
@@ -301,9 +301,9 @@ class Estimator:
         :param q: an array representing all of the current beta angles
         :parem S_lmda: an array of all the beta angles required to achieve a desired ICR
         :returns: an array of the same length as the input arrays with each component
-        as the correct distance of q from S_lmda.
-        This is done to prevent an 'out by pi' issue where q and S_lmda would not converge.
-        We also track the number of times each wheel has been flipped to ensure that it drives
+            as the correct distance of q from S_lmda.
+            This is done to prevent an 'out by pi' issue where q and S_lmda would not converge.
+            We also track the number of times each wheel has been flipped to ensure that it drives
         in the correct direction, True indicates drive direction should be reversed.
         """
         dif = q - S_lmda
