@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='swervedrive',
       version='0.1',
@@ -7,7 +7,7 @@ setup(name='swervedrive',
       author='FRC Team 4774',
       author_email='enquiries@thedropbears.org.au',
       license='MIT',
-      packages=['swervedrive'],
+      packages=find_packages(),
       install_requires=[
           'numpy',
       ])
