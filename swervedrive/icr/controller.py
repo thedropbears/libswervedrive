@@ -86,6 +86,9 @@ class Controller:
         """
         lmda_e = self.icre.estimate_lmda(modules_beta)
         mu_e = self.kinematic_model.estimate_mu(modules_phi_dot, lmda_e)
+        if lmda_d is None or mu_d is None:
+            lmda_d = lmda_e
+            mu_d = mu_e
         xi_e = self.kinematic_model.compute_odometry(lmda_e, mu_e, delta_t)
 
         k_b = 1
