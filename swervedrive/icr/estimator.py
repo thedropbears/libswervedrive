@@ -11,8 +11,13 @@ class Estimator:
     max_iter = 50  # TODO: figure out what value should be
     tolerance: float = 1e-3
 
-    def __init__(self, epsilon_init: np.ndarray, modules_alpha: np.ndarray, modules_l: np.ndarray,
-                 modules_b: np.ndarray):
+    def __init__(
+        self,
+        epsilon_init: np.ndarray,
+        modules_alpha: np.ndarray,
+        modules_l: np.ndarray,
+        modules_b: np.ndarray,
+    ):
         """
         Initialize the Estimator object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
@@ -39,16 +44,20 @@ class Estimator:
         self.s = np.zeros(shape=(3, self.n_modules))
         self.l_v = np.zeros(shape=(3, self.n_modules))
         for i in range(self.n_modules):
-            self.a[:,i] = np.array([math.cos(self.alpha[i]),
-                                    math.sin(self.alpha[i]),
-                                    0])
-            self.a_orth[:,i] = np.array([-math.sin(self.alpha[i]),
-                                         math.cos(self.alpha[i]),
-                                         0])
-            self.s[:,i] = np.array([self.l[i]*math.cos(self.alpha[i]),
-                                    self.l[i]*math.sin(self.alpha[i]),
-                                    1])
-            self.l_v[:,i] = np.array([0, 0, self.l[i]])
+            self.a[:, i] = np.array(
+                [math.cos(self.alpha[i]), math.sin(self.alpha[i]), 0]
+            )
+            self.a_orth[:, i] = np.array(
+                [-math.sin(self.alpha[i]), math.cos(self.alpha[i]), 0]
+            )
+            self.s[:, i] = np.array(
+                [
+                    self.l[i] * math.cos(self.alpha[i]),
+                    self.l[i] * math.sin(self.alpha[i]),
+                    1,
+                ]
+            )
+            self.l_v[:, i] = np.array([0, 0, self.l[i]])
         self.flipped = [None] * self.n_modules
 
     def estimate_lmda(self, q: np.ndarray):
@@ -67,8 +76,8 @@ class Estimator:
             lmda = lmda_start
             if closest_lmda is None:
                 closest_lmda = lmda_start
-                closest_dist = np.linalg.norm(self.flip_wheel(q, self.S(lmda_start)))
-            if np.linalg.norm(self.flip_wheel(q, self.S(lmda))) < self.eta_delta:
+                closest_dist = np.linalg.norm(shortest_distance(q, self.S(lmda_start)))
+            if np.linalg.norm(shortest_distance(q, self.S(lmda))) < self.eta_delta:
                 found = True
             else:
                 last_singularity = None
@@ -80,7 +89,9 @@ class Estimator:
                         S_u[last_singularity] = 0
                         S_v[last_singularity] = 0
                     (delta_u, delta_v) = self.solve(S_u, S_v, q, lmda)
-                    lmda_t, worse = self.update_parameters(lmda, delta_u/10, delta_v/10, q)
+                    lmda_t, worse = self.update_parameters(
+                        lmda, delta_u / 10, delta_v / 10, q
+                    )
                     singularity, singularity_number = self.handle_singularities(lmda_t)
                     S_lmda = self.S(lmda_t)
                     if last_singularity is not None and singularity:
@@ -89,8 +100,8 @@ class Estimator:
                         # value
                         S_lmda[last_singularity] = q[last_singularity]
                     last_singularity = singularity_number
-                    if np.linalg.norm(self.flip_wheel(q, S_lmda)) > np.linalg.norm(
-                        self.flip_wheel(q, self.S(lmda_start))
+                    if np.linalg.norm(shortest_distance(q, S_lmda)) > np.linalg.norm(
+                        shortest_distance(q, self.S(lmda_start))
                     ):
                         # appears the algorithm has diverged as we are not
                         # improving
@@ -98,7 +109,7 @@ class Estimator:
                         break
                     else:
                         found = np.linalg.norm(lmda - lmda_t) < self.eta_lmda
-                        distance = np.linalg.norm(self.flip_wheel(q, S_lmda))
+                        distance = np.linalg.norm(shortest_distance(q, S_lmda))
                         if distance < closest_dist:
                             closest_lmda = lmda_t
                             closest_dist = distance
@@ -145,7 +156,7 @@ class Estimator:
                 c /= np.linalg.norm(c)
                 if c[2] < 0:
                     c = -c
-                dist = np.linalg.norm(self.flip_wheel(q, self.S(c)))
+                dist = np.linalg.norm(shortest_distance(q, self.S(c)))
                 starting_points.append([c, dist])
         starting_points.sort(key=lambda point: point[1])
         sp_arr = [p[0].reshape(3, 1) for p in starting_points]
@@ -162,32 +173,31 @@ class Estimator:
         """
         S_u = np.zeros(shape=(self.n_modules,))
         S_v = np.zeros(shape=(self.n_modules,))
-        lmda = lmda.reshape(3) # computations require lambda as a row vector
+        lmda = lmda.reshape(3)  # computations require lambda as a row vector
         for i in range(self.n_modules):
             # equations 16 and 17 in the paper
             a = column(self.a, i).reshape(3)
             a_orth = column(self.a_orth, i).reshape(3)
             l = column(self.l_v, i).reshape(3)
-            delta = lmda.dot(a-l)
+            delta = lmda.dot(a - l)
             omega = lmda.dot(a_orth)
             # equation 18 excluding ∂lmda/∂u
-            gamma_top = omega*(a-l) + delta*a_orth
-            gamma_bottom = (lmda.dot(delta*(a-l) - omega*a_orth))
+            gamma_top = omega * (a - l) + delta * a_orth
+            gamma_bottom = lmda.dot(delta * (a - l) - omega * a_orth)
             if abs(gamma_bottom) < self.tolerance:
                 S_u[i] = 0
                 S_v[i] = 0
                 continue
             # equation 19
-            du = np.array([1, 0, -lmda[0]/lmda[2]]).reshape(1, 3)
-            dv = np.array([0, 1, -lmda[1]/lmda[2]]).reshape(1, 3)
+            du = np.array([1, 0, -lmda[0] / lmda[2]]).reshape(1, 3)
+            dv = np.array([0, 1, -lmda[1] / lmda[2]]).reshape(1, 3)
             beta_u = du.dot(gamma_top) / gamma_bottom
             beta_v = dv.dot(gamma_top) / gamma_bottom
             S_u[i] = beta_u
             S_v[i] = beta_v
         return (S_u, S_v)
 
-    def solve(self, S_u: np.ndarray, S_v: np.ndarray, q: np.ndarray,
-              lmda: np.ndarray):
+    def solve(self, S_u: np.ndarray, S_v: np.ndarray, q: np.ndarray, lmda: np.ndarray):
         """
         Solve the system of linear equations to find the free parameters
         delta_u and delta_v.
@@ -207,10 +217,11 @@ class Estimator:
         diff = (q - p_zero).reshape((1, -1))
         b = np.array([diff.dot(S_u.T), diff.dot(S_v.T)])
         x = np.linalg.solve(A, b)
-        return x[0,0], x[1,0]
+        return x[0, 0], x[1, 0]
 
-    def update_parameters(self, lmda: np.ndarray, delta_u: float, delta_v: float,
-                          q: np.ndarray):
+    def update_parameters(
+        self, lmda: np.ndarray, delta_u: float, delta_v: float, q: np.ndarray
+    ):
         """
         Move our estimate of the ICR based on the free parameters delta_u and
         delta_v. If invalid parameters are produced rescale them so they lie
@@ -230,8 +241,8 @@ class Estimator:
         worse = False
         # while the algorithm produces a worse than or equal to good estimate
         # for q on the surface as lmda from the previous iteration
-        while np.linalg.norm(self.flip_wheel(q, self.S(lmda))) <= np.linalg.norm(
-            self.flip_wheel(q, self.S(lmda_t))
+        while np.linalg.norm(shortest_distance(q, self.S(lmda))) <= np.linalg.norm(
+            shortest_distance(q, self.S(lmda_t))
         ):
             # set a minimum step size to avoid infinite recursion
             if np.linalg.norm([delta_u, delta_v]) < self.min_delta_size:
@@ -247,12 +258,12 @@ class Estimator:
                 factor = np.linalg.norm([u, v])
                 u_i *= factor
                 v_i *= factor
-            w = math.sqrt(1-np.linalg.norm([u_i, v_i])) # equation 4
+            w = math.sqrt(1 - np.linalg.norm([u_i, v_i]))  # equation 4
             lmda_t = np.array([u_i, v_i, w]).reshape(-1, 1)
             # backtrack by reducing the step size
             delta_u *= 0.5
             delta_v *= 0.5
-        if lmda_t[2,0] < 0:
+        if lmda_t[2, 0] < 0:
             lmda_t = -lmda_t
         return lmda_t, worse
 
@@ -268,7 +279,7 @@ class Estimator:
         for i in range(self.n_modules):
             # equations 16 and 17 in the paper
             s = column(self.s, i)
-            if np.allclose(lmda, s/np.linalg.norm(s)):
+            if np.allclose(lmda, s / np.linalg.norm(s)):
                 wheel_number = i
                 break
         return wheel_number is not None, wheel_number
@@ -281,39 +292,50 @@ class Estimator:
         :returns: row vector expressing the point.
         """
         S = np.zeros(shape=(self.n_modules,))
-        lmda = lmda.T # computations require lambda as a row vector
+        lmda = lmda.T  # computations require lambda as a row vector
         for i in range(self.n_modules):
             # equations 16 and 17 in the paper
             a = column(self.a, i)
             a_orth = column(self.a_orth, i)
             l = column(self.l_v, i)
             # fix for the out by pi issue, basically the flip-wheel function below
-            S[i] = math.atan2(lmda.dot(a_orth),lmda.dot(a-l))
+            S[i] = math.atan2(lmda.dot(a_orth), lmda.dot(a - l))
             dif_sin = math.sin(S[i])
             dif_cos = math.cos(S[i])
             S[i] = np.arctan(dif_sin / dif_cos)
+            # TODO check for NaNs in caused by dif_cos == 0
         return S
 
-    def flip_wheel(self, q: np.ndarray, S_lmda: np.ndarray):
-        """
-        Determine if the wheel is either already facing the desired direction or is out by pi,
-        in both cases the wheel does not have to turn.
-        :param q: an array representing all of the current beta angles
-        :parem S_lmda: an array of all the beta angles required to achieve a desired ICR
-        :returns: an array of the same length as the input arrays with each component
-            as the correct distance of q from S_lmda.
-            This is done to prevent an 'out by pi' issue where q and S_lmda would not converge.
-            We also track the number of times each wheel has been flipped to ensure that it drives
-        in the correct direction, True indicates drive direction should be reversed.
-        """
-        dif = q - S_lmda
-        dif_sin = np.sin(dif)
-        dif_cos = np.cos(dif)
-        output = np.arctan(dif_sin / dif_cos)
-        output[np.isnan(output)] = math.pi/2
-        absolute_direction = np.arctan2(dif_sin, dif_cos)
-        self.flipped = np.where(abs(output - absolute_direction) > self.tolerance, True, False)
-        return output
+
+def shortest_distance(
+    q: np.ndarray, S_lmda: np.ndarray, beta_bounds: np.ndarray = None
+):
+    """
+    Determine if the rotation each wheel needs to make to get to the target.
+    Respect the joint limits, but allow movement to a position pi from the target position
+    if joint limits allow it.
+    :param q: an array representing all of the current beta angles
+    :parem S_lmda: an array of all the beta angles required to achieve a desired ICR
+    :returns: an array of the same length as the input arrays with each component
+        as the correct distance of q from S_lmda.
+    """
+    # Iterate because we have to apply joint limits
+    output = np.zeros(q.shape)
+    for joint, (qi, beta_i) in enumerate(zip(q, S_lmda)):
+        if beta_bounds is not None:
+            bounds = beta_bounds[joint]
+        else:
+            bounds = [-2 * math.pi, 2 * math.pi]
+        qi = math.atan2(math.sin(qi), math.cos(qi))
+        d = qi - beta_i
+        beta_i_plus = beta_i + math.pi
+        beta_i_minus = beta_i - math.pi
+        if beta_i_minus > bounds[0] and abs(qi - beta_i_minus) < abs(d):
+            d = qi - beta_i_minus
+        if beta_i_plus < bounds[1] and abs(qi - beta_i_plus) < abs(d):
+            d = qi - beta_i_plus
+        output[joint] = d
+    return output
 
 
 def column(mat, row_i):

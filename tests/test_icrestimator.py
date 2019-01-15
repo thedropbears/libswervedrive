@@ -318,7 +318,9 @@ def test_select_starting_points():
     assert any(close)
 
 
-def test_flip_wheel():
+def test_shortest_distance():
+    from swervedrive.icr.estimator import shortest_distance
+
     # S_lmda on robot origin
     alpha = math.pi / 4  # 45 degrees
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
@@ -326,15 +328,13 @@ def test_flip_wheel():
     icre = init_icre(alphas, [1] * 4, q)
     S_lmda = np.array([0] * 4)
     assert (
-        np.linalg.norm(icre.flip_wheel(q, S_lmda) - np.array([0, 0, math.pi / 2, 0]))
+        np.linalg.norm(shortest_distance(q, S_lmda) - np.array([0, 0, math.pi / 2, 0]))
         < tolerance
     )
-    assert all(icre.flipped == [False, True, False, True])
 
     q = np.array([-2 * math.pi, -7 * math.pi, -math.pi / 2, -math.pi])
     S_lmda = np.array([0] * 4)
     assert (
-        np.linalg.norm(icre.flip_wheel(q, S_lmda) - np.array([0, 0, -math.pi / 2, 0]))
+        np.linalg.norm(shortest_distance(q, S_lmda) - np.array([0, 0, -math.pi / 2, 0]))
         < tolerance
     )
-    assert all(icre.flipped == [False, True, False, True])
