@@ -1,6 +1,8 @@
 from enum import Enum
 import numpy as np
 
+from swervedrive.icr.estimator import shortest_distance
+
 
 def cartesian_to_lambda(x, y):
     return np.reshape(1 / np.linalg.norm([x, y, 1]) * np.array([x, y, 1]), (3, 1))
@@ -55,17 +57,24 @@ class KinematicModel:
             [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha))]
         ).T
         singularities_lmda = np.array(
-            [cartesian_to_lambda(s[0], s[1]).reshape(-1)
-             for s in singularities_cartesian]
+            [
+                cartesian_to_lambda(s[0], s[1]).reshape(-1)
+                for s in singularities_cartesian
+            ]
         )
-        self.singularities = np.concatenate([
-            singularities_lmda,
-            -singularities_lmda
-        ])
+        self.singularities = np.concatenate([singularities_lmda, -singularities_lmda])
 
-    def compute_chassis_motion(self, lmda_d: np.ndarray, lmda_e: np.ndarray,
-                               mu_d: float, mu_e: float, k_b: float,
-                               phi_dot_bounds: float, k_lmda: float, k_mu: float):
+    def compute_chassis_motion(
+        self,
+        lmda_d: np.ndarray,
+        lmda_e: np.ndarray,
+        mu_d: float,
+        mu_e: float,
+        k_b: float,
+        phi_dot_bounds: float,
+        k_lmda: float,
+        k_mu: float,
+    ):
         """
         Compute the path to the desired state and implement control laws
         required to produce the motion.
@@ -88,8 +97,7 @@ class KinematicModel:
 
         # TODO: figure out what the tolerance should be
         on_singularity = any(
-            all(np.isclose(lmda_d, s, atol=1e-2))
-            for s in self.singularities
+            all(np.isclose(lmda_d, s, atol=1e-2)) for s in self.singularities
         )
         if on_singularity:
             lmda_d = lmda_e
@@ -98,7 +106,7 @@ class KinematicModel:
 
         d2lmda = k_b ** 2 * k_lmda ** 2 * ((lmda_e.dot(lmda_d)) * lmda_d - lmda_e)
 
-        dmu = k_b * k_mu * (mu_d-mu_e)
+        dmu = k_b * k_mu * (mu_d - mu_e)
 
         return dlmda, d2lmda, dmu
 
@@ -108,11 +116,8 @@ class KinematicModel:
         """
         lmda = np.reshape(lmda, (-1, 1))
         _, s_perp_2 = self.s_perp(lmda)
-        f_lmda = (
-            self.r
-            / (s_perp_2 - self.b_vector).T.dot(lmda)
-        ).reshape(-1)
-        return f_lmda*phi_dot
+        f_lmda = (self.r / (s_perp_2 - self.b_vector).T.dot(lmda)).reshape(-1)
+        return f_lmda * phi_dot
 
     def compute_actuators_motion(
         self,
@@ -191,9 +196,9 @@ class KinematicModel:
         :beta_e: array of measured beta values.
         :returns: Array of dbeta values.
         """
-        error = beta_d - beta_e
+        error = shortest_distance(beta_d, beta_e)
         dbeta = self.k_beta * error
-        if np.isclose(dbeta, 0, atol=1e-2).all():
+        if np.linalg.norm(dbeta) < 1e-2:
             self.state = KinematicModel.State.RUNNING
         return dbeta
 
