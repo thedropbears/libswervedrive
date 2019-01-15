@@ -84,6 +84,16 @@ class Controller:
         :param delta_t: time over which control step will be executed.
         :returns: beta_c, phi_dot_c, xi_e
         """
+        if self.kinematic_model.state == KinematicModel.State.RECONFIGURING:
+            # no ICR given to target, and can't use lmda_d as it is poorly defined
+            # in the reconfiguring state
+            if lmda_d is None or mu_d is None:
+                return modules_beta, modules_phi_dot, self.kinematic_model.xi
+            beta_d = self.icre.S(lmda_d)
+            dbeta = self.kinematic_model.reconfigure_wheels(beta_d, modules_beta)
+            phi_dot_c = np.array([0] * len(dbeta))
+            return dbeta, phi_dot_c, self.kinematic_model.xi
+
         lmda_e = self.icre.estimate_lmda(modules_beta)
         mu_e = self.kinematic_model.estimate_mu(modules_phi_dot, lmda_e)
         if lmda_d is None or mu_d is None:
@@ -100,18 +110,12 @@ class Controller:
 
         while backtrack:
             dlmda, d2lmda, dmu = self.kinematic_model.compute_chassis_motion(
-                lmda_d, lmda_e, mu_d, mu_e, k_b, self.phi_dot_bounds, k_lmda=1, k_mu=1
+                lmda_d, lmda_e, mu_d, mu_e, k_b, self.phi_dot_bounds, k_lmda=50, k_mu=50
             )
 
             dbeta, d2beta, phi_dot_p, dphi_dot_p = self.kinematic_model.compute_actuators_motion(
                 lmda_e, dlmda, d2lmda, mu_e, dmu
             )
-            if self.kinematic_model.state == KinematicModel.State.RECONFIGURING:
-                beta_d = self.icre.S(lmda_d)
-                dbeta = self.kinematic_model.reconfigure_wheels(beta_d, modules_beta)
-                d2beta = np.array([0] * len(dbeta))
-                phi_dot_p = np.array([0] * len(dbeta))
-                dphi_dot_p = np.array([0] * len(dbeta))
 
             s_dot_l, s_dot_u, s_2dot_l, s_2dot_u = self.scaler.compute_scaling_bounds(
                 dbeta, d2beta, dphi_dot_p
