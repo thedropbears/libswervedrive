@@ -173,7 +173,7 @@ class Estimator:
             # equation 18 excluding ∂lmda/∂u
             gamma_top = omega*(a-l) + delta*a_orth
             gamma_bottom = (lmda.dot(delta*(a-l) - omega*a_orth))
-            if gamma_bottom == 0:
+            if abs(gamma_bottom) < self.tolerance:
                 S_u[i] = 0
                 S_v[i] = 0
                 continue
