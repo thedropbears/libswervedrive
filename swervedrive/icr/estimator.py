@@ -303,7 +303,7 @@ class Estimator:
             dif_sin = math.sin(S[i])
             dif_cos = math.cos(S[i])
             S[i] = np.arctan(dif_sin / dif_cos)
-            # TODO check for NaNs in caused by dif_cos == 0
+        S[np.isnan(S)] = math.pi / 2
         return S
 
 
