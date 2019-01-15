@@ -63,7 +63,7 @@ class Controller:
         self.icre = Estimator(epsilon_init, self.alpha, self.l, self.b)
 
         self.kinematic_model = KinematicModel(
-            self.alpha, self.l, self.b, self.r, k_beta=1
+            self.alpha, self.l, self.b, self.r, k_beta=50
         )
         self.scaler = TimeScaler(beta_dot_bounds, beta_2dot_bounds, phi_2dot_bounds)
 
@@ -85,14 +85,19 @@ class Controller:
         :returns: beta_c, phi_dot_c, xi_e
         """
         if self.kinematic_model.state == KinematicModel.State.RECONFIGURING:
-            # no ICR given to target, and can't use lmda_d as it is poorly defined
-            # in the reconfiguring state
+            # we can't simply set the estimated lmda because it is poorly defined
+            # in the reconfiguring state - so we must simply discard this command
             if lmda_d is None or mu_d is None:
                 return modules_beta, modules_phi_dot, self.kinematic_model.xi
             beta_d = self.icre.S(lmda_d)
             dbeta = self.kinematic_model.reconfigure_wheels(beta_d, modules_beta)
+            d2beta = np.array([0] * len(dbeta))
             phi_dot_c = np.array([0] * len(dbeta))
-            return dbeta, phi_dot_c, self.kinematic_model.xi
+            dphi_dot_c = np.array([0] * len(dbeta))
+            beta_c, phi_dot_c = self.integrate_motion(
+                dbeta, d2beta, phi_dot_c, dphi_dot_c, modules_beta, delta_t
+            )
+            return beta_c, phi_dot_c, self.kinematic_model.xi
 
         lmda_e = self.icre.estimate_lmda(modules_beta)
         mu_e = self.kinematic_model.estimate_mu(modules_phi_dot, lmda_e)
