@@ -1,6 +1,9 @@
 import numpy as np
 import math
+import pytest
 from swervedrive.icr import Estimator
+from swervedrive.icr.kinematicmodel import cartesian_to_lambda as c2l
+
 
 global tolerance
 tolerance = 0.05
@@ -15,64 +18,81 @@ def init_icre(alphas, ls, bs):
     return icre
 
 
+def fuzz_q(q):
+    q += (np.random.random_sample(q.shape) * 2 - 1) * 5 / 180 * math.pi
+    return q
+
+
+def m(icre, beta, q):
+    # Metric defined in Section 4.1
+    diff = icre.flip_wheel(q, beta)
+    m = diff.dot(diff) / (len(diff) * math.pi ** 2)
+    return m
+
+
+def qua(icre, beta, q):
+    # Metric defined in Section 4.1
+    f = 500  # Chosen in the paper
+    qua = 1 - math.log(f * m(icre, beta, q) + 1) / math.log(f + 1)
+    return qua
+
+
 def test_estimate_lambda():
     icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1], [0, 0, 0])
 
     q = np.zeros(shape=(3,))  # ICR on the robot's origin
-    desired_lmda = np.array([0, 0, 1])
+    desired_lmda = c2l(0, 0).T
     lmda_e = icre.estimate_lmda(q)
-    assert np.allclose(desired_lmda, lmda_e.T)
+    assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
 
     q = np.array([math.pi / 4, 0, -math.pi / 4])
-    icr = np.array([0, -1, 1])
-    desired_lmda = icr * 1 / np.linalg.norm(icr)
+    desired_lmda = c2l(0, -1).T
     lmda_e = icre.estimate_lmda(q)
-    assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
+    assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
 
     # driving along the y axis
     q = np.array([0, math.pi / 2, 0])
     # so the ICR should be on the U axis
-    desired_lmda = np.array([1, 0, 0])
+    desired_lmda = c2l(1e20, 0).T  # Rotation about infinity on x-axis
     lmda_e = icre.estimate_lmda(q)
-    assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
+    assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
 
     # A square robot with 4 wheels, one at each corner, the difference between each
     # alpha value is pi/4 and the distance from the centre of the robot to each module
     # is the same
-    alpha = math.pi / 4
-    alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
+    alphas = np.arange(4) * math.pi / 2
     icre = init_icre(alphas, [1] * 4, [0, 0, 0, 0])
 
     # test case from the simulator
     q = np.array([0.0, 0.0, math.pi, math.pi])
-    desired_lmda = np.array([0, 0, 1])
+    desired_lmda = np.array([0, 0, 1]).T
     lmda_e = icre.estimate_lmda(q)
-    assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
+    assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
 
     # ICR on a wheel, should be a singularity
     q = np.array([-math.pi / 4, 0, math.pi / 4, 0])
-    desired_lmda = np.array([-0.5, 0.5, 1 / math.sqrt(2)])
+    desired_lmda = c2l(0, 1).T
     lmda_e = icre.estimate_lmda(q)
-    assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
-    assert icre.handle_singularities(lmda_e)
+    assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
+    singularity, wheel = icre.handle_singularities(lmda_e)
+    # assert singularity
+    # assert wheel == 1
 
     # Another square robot with side length of 2 to make calculations simpler
-    alpha = math.pi / 4
-    alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
+    alphas += math.pi / 4
     icre = init_icre(alphas, [math.sqrt(2)] * 4, [0] * 4)
-    # ICR on one side of the robot frame
+    # ICR on one side of the robot frame between wheels 1 and 2
     q = np.array(
         [
-            math.acos(6 / (2 * math.sqrt(10))),
-            math.pi / 4,
+            -(math.atan(2 / 1) - math.pi / 4),
             -math.pi / 4,
-            -math.acos(6 / (2 * math.sqrt(10))),
+            math.pi / 4,
+            math.atan(2 / 1) - math.pi / 4,
         ]
     )
-    icr = np.array([0, -1, 1])
-    desired_lmda = icr * 1 / np.linalg.norm(icr)
+    desired_lmda = c2l(-1, 0).T
     lmda_e = icre.estimate_lmda(q)
-    assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
+    assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
 
     # # afaik this is the worst case scenario, 2 wheel singularities and a co-linear singularity
     # q = np.array([-math.pi/4, math.pi/4, math.pi/4, -math.pi/4])
@@ -80,6 +100,79 @@ def test_estimate_lambda():
     # desired_lmda = icr * 1 / np.linalg.norm(icr)
     # lmda_e = icre.estimate_lmda(q)
     # assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
+
+
+@pytest.mark.skip("Closeness calculations not quite working yet")
+def test_estimate_lambda_under_uncertainty():
+    # Previous tests with not-quite-converged q values
+    req_closeness = 0.90
+    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1], [0, 0, 0])
+
+    q = np.zeros(shape=(3,))  # ICR on the robot's origin
+    q = fuzz_q(q)
+    desired_lmda = c2l(0, 0).T
+    lmda_e = icre.estimate_lmda(q)
+    closeness = qua(icre, icre.S(lmda_e), q)
+    assert closeness > req_closeness
+
+    q = np.array([math.pi / 4, 0, -math.pi / 4])
+    q = fuzz_q(q)
+    desired_lmda = c2l(0, -1).T
+    lmda_e = icre.estimate_lmda(q)
+    closeness = qua(icre, icre.S(lmda_e), q)
+    assert closeness > req_closeness
+
+    # driving along the y axis
+    q = np.array([0, math.pi / 2, 0])
+    q = fuzz_q(q)
+    # so the ICR should be on the U axis
+    desired_lmda = c2l(1e20, 0).T  # Rotation about infinity on x-axis
+    lmda_e = icre.estimate_lmda(q)
+    closeness = qua(icre, icre.S(lmda_e), q)
+    assert closeness > req_closeness
+
+    # A square robot with 4 wheels, one at each corner, the difference between each
+    # alpha value is pi/4 and the distance from the centre of the robot to each module
+    # is the same
+    alphas = np.arange(4) * math.pi / 2
+    icre = init_icre(alphas, [1] * 4, [0, 0, 0, 0])
+
+    # test case from the simulator
+    q = np.array([0.0, 0.0, math.pi, math.pi])
+    q = fuzz_q(q)
+    desired_lmda = np.array([0, 0, 1]).T
+    lmda_e = icre.estimate_lmda(q)
+    closeness = qua(icre, icre.S(lmda_e), q)
+    assert closeness > req_closeness
+
+    # ICR on a wheel, should be a singularity
+    q = np.array([-math.pi / 4, 0, math.pi / 4, 0])
+    q = fuzz_q(q)
+    desired_lmda = c2l(0, 1).T
+    lmda_e = icre.estimate_lmda(q)
+    closeness = qua(icre, icre.S(lmda_e), q)
+    assert closeness > req_closeness
+    singularity, wheel = icre.handle_singularities(lmda_e)
+    # assert singularity
+    # assert wheel == 1
+
+    # Another square robot with side length of 2 to make calculations simpler
+    alphas += math.pi / 4
+    icre = init_icre(alphas, [math.sqrt(2)] * 4, [0] * 4)
+    # ICR on one side of the robot frame between wheels 1 and 2
+    q = np.array(
+        [
+            -(math.atan(2 / 1) - math.pi / 4),
+            -math.pi / 4,
+            math.pi / 4,
+            math.atan(2 / 1) - math.pi / 4,
+        ]
+    )
+    q = fuzz_q(q)
+    desired_lmda = c2l(-1, 0).T
+    lmda_e = icre.estimate_lmda(q)
+    closeness = qua(icre, icre.S(lmda_e), q)
+    assert closeness > req_closeness
 
 
 def test_joint_space_conversion():
@@ -121,7 +214,9 @@ def test_solve():
 
 def test_compute_derivatives():
     # for now, check only for runtime errors
-    icre = init_icre([math.pi / 4, -math.pi / 4, math.pi], [1, 1, 1], [0, 0, 0])
+    icre = init_icre(
+        [0, math.pi / 2, math.pi, math.pi * 3 / 4], [1, 1, 1, 1], [0, 0, 0, 0]
+    )
     lmda = np.array([0, 0, -1]).reshape(-1, 1)
     S_u, S_v = icre.compute_derivatives(lmda)
 
