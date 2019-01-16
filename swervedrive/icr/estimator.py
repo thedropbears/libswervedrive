@@ -90,7 +90,7 @@ class Estimator:
                         S_v[last_singularity] = 0
                     (delta_u, delta_v) = self.solve(S_u, S_v, q, lmda)
                     lmda_t, worse = self.update_parameters(
-                        lmda, delta_u / 10, delta_v / 10, q
+                        lmda, delta_u, delta_v, q
                     )
                     singularity, singularity_number = self.handle_singularities(lmda_t)
                     S_lmda = self.S(lmda_t)
