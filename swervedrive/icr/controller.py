@@ -63,7 +63,7 @@ class Controller:
         self.icre = Estimator(epsilon_init, self.alpha, self.l, self.b)
 
         self.kinematic_model = KinematicModel(
-            self.alpha, self.l, self.b, self.r, k_beta=4
+            self.alpha, self.l, self.b, self.r, k_beta=40
         )
         self.scaler = TimeScaler(beta_dot_bounds, beta_2dot_bounds, phi_2dot_bounds)
 
