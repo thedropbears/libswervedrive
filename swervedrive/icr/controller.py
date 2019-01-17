@@ -63,7 +63,7 @@ class Controller:
         self.icre = Estimator(epsilon_init, self.alpha, self.l, self.b)
 
         self.kinematic_model = KinematicModel(
-            self.alpha, self.l, self.b, self.r, k_beta=50
+            self.alpha, self.l, self.b, self.r, k_beta=4
         )
         self.scaler = TimeScaler(beta_dot_bounds, beta_2dot_bounds, phi_2dot_bounds)
 
@@ -114,7 +114,7 @@ class Controller:
 
         while backtrack:
             dlmda, d2lmda, dmu = self.kinematic_model.compute_chassis_motion(
-                lmda_d, lmda_e, mu_d, mu_e, k_b, self.phi_dot_bounds, k_lmda=50, k_mu=50
+                lmda_d, lmda_e, mu_d, mu_e, k_b, self.phi_dot_bounds, k_lmda=4, k_mu=4
             )
 
             dbeta, d2beta, phi_dot_p, dphi_dot_p = self.kinematic_model.compute_actuators_motion(
