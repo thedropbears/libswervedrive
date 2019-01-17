@@ -1,4 +1,5 @@
 from enum import Enum
+import math
 import numpy as np
 
 from swervedrive.icr.estimator import shortest_distance
@@ -203,7 +204,7 @@ class KinematicModel:
         """
         error = shortest_distance(beta_d, beta_e)
         dbeta = self.k_beta * error
-        if np.linalg.norm(dbeta) < 1e-2:
+        if np.linalg.norm(error) < 1/180*math.pi * self.n_modules:  # degrees per module
             self.state = KinematicModel.State.RUNNING
         return dbeta
 
