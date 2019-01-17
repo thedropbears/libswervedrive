@@ -68,6 +68,29 @@ def test_compute_actuators_motion(kinematic_model):
     assert np.isclose(phi_dot[0], 10, atol=1e-2)
     assert np.isclose(phi_dot_prime[0], 20, atol=1e-2)
 
+def test_actuators_motion_reverse(kinematic_model):
+    #lmda = np.array([0, 0, 1])
+    #lmda_dot = np.array([0, 0, 1])
+    lmda = np.array([0.99978376, -0., 0.02079483])
+    lmda_dot = np.array([0.02162124, 0., -1.03951656])
+    lmda_2dot = np.array([0, 0, -51.98706951])
+    mu = 126.4
+    mu_dot = 1.0
+    beta_prime, beta_2prime, phi_dot, phi_dot_prime = kinematic_model.compute_actuators_motion(
+        lmda, lmda_dot, lmda_2dot, mu, mu_dot
+    )
+    # Flip lambda an mu
+    lmda = -lmda
+    lmda_dot = -lmda_dot
+    lmda_2dot = -lmda_2dot
+    mu = -mu
+    mu_dot = -mu_dot
+    beta_prime_flip, beta_2prime_flip, phi_dot_flip, phi_dot_prime_flip = kinematic_model.compute_actuators_motion(
+        lmda, lmda_dot, lmda_2dot, mu, mu_dot
+    )
+    assert np.isclose(beta_prime, beta_prime_flip).all()
+
+
 
 def test_singularity_on_wheel(kinematic_model):
     lmda = cartesian_to_lambda(1, 0)  # this is the location of the first wheel
@@ -159,7 +182,7 @@ def test_compute_chassis_motion_no_motion(kinematic_model):
     lmda_e = lmda_d
     mu_d = 0.0
     mu_e = mu_d
-    k_b = 0.5
+    k_b = 1.0
     phi_dot_bounds = np.array([-5, 5] * 4)
     k_lmda = 50
     k_mu = 50
@@ -169,3 +192,4 @@ def test_compute_chassis_motion_no_motion(kinematic_model):
     assert np.isclose(dlmda, np.array([0] * 3)).all()
     assert np.isclose(d2lmda, np.array([0] * 3)).all()
     assert np.isclose(dmu, 0)
+

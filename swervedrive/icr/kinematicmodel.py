@@ -90,6 +90,11 @@ class KinematicModel:
         :returns: (derivative of lmda, 2nd derivative of lmda, derivative of mu)
         """
 
+        # Because +lmda and -lmda are the same, we should choose the closest one
+        if lmda_d.dot(lmda_e) < 0:
+            lmda_d = -lmda_d
+            mu_d = -mu_d
+
         # bound mu based on the ph_dot constraits
         mu_min = max(self.compute_mu(lmda_d, phi_dot_bounds[0]))
         mu_max = min(self.compute_mu(lmda_d, phi_dot_bounds[1]))
