@@ -152,3 +152,20 @@ def test_compute_odometry(kinematic_model):
     xi = kinematic_model.compute_odometry(lmda, mu, dt)
     assert xi[0, 0] < x_dot * dt * 2
     assert xi[0, 1] > y_dot * dt * 2
+
+
+def test_compute_chassis_motion_no_motion(kinematic_model):
+    lmda_d = np.array([1, 0, 0])
+    lmda_e = lmda_d
+    mu_d = 0.0
+    mu_e = mu_d
+    k_b = 0.5
+    phi_dot_bounds = np.array([-5, 5] * 4)
+    k_lmda = 50
+    k_mu = 50
+
+    dlmda, d2lmda, dmu = kinematic_model.compute_chassis_motion(lmda_d, lmda_e, mu_d, mu_e, k_b,
+            phi_dot_bounds, k_lmda, k_mu)
+    assert np.isclose(dlmda, np.array([0] * 3)).all()
+    assert np.isclose(d2lmda, np.array([0] * 3)).all()
+    assert np.isclose(dmu, 0)
