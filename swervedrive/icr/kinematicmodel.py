@@ -91,6 +91,9 @@ class KinematicModel:
         :returns: (derivative of lmda, 2nd derivative of lmda, derivative of mu)
         """
 
+        assert lmda_d.shape == (3,1), lmda_d
+        assert lmda_e.shape == (3,1), lmda_e
+
         # Because +lmda and -lmda are the same, we should choose the closest one
         if lmda_d.T.dot(lmda_e) < 0:
             lmda_d = -lmda_d
@@ -103,7 +106,7 @@ class KinematicModel:
 
         # TODO: figure out what the tolerance should be
         on_singularity = any(
-                lmda_d.T.dot(s) >= 0.99 for s in self.singularities
+            lmda_d.T.dot(s) >= 0.99 for s in self.singularities
         )
         if on_singularity:
             lmda_d = lmda_e
@@ -116,10 +119,13 @@ class KinematicModel:
 
         return dlmda, d2lmda, dmu
 
-    def compute_mu(self, lmda, phi_dot):
+    def compute_mu(self, lmda: np.ndarray, phi_dot: float):
         """
         Compute mu given lmda and phi_dot (equation 25 of control paper).
         """
+
+        assert lmda.shape == (3,1), lmda
+
         lmda = np.reshape(lmda, (-1, 1))
         _, s_perp_2 = self.s_perp(lmda)
         f_lmda = (self.r / (s_perp_2 - self.b_vector).T.dot(lmda)).reshape(-1)
@@ -144,6 +150,9 @@ class KinematicModel:
             arrays: (beta_prime, beta_2prime, phi_dot, phi_dot_prime) (phi_dot is a already a time
             derivative as the relevant constraints are applied in the path planner).
         """
+        assert lmda.shape == (3,1), lmda
+        assert lmda_dot.shape == (3,1), lmda_dot
+        assert lmda_2dot.shape == (3,1), lmda_2dot
 
         if self.state == KinematicModel.State.STOPPING:
             if abs(mu) < 1e-3:
@@ -202,6 +211,9 @@ class KinematicModel:
         :beta_e: array of measured beta values.
         :returns: Array of dbeta values.
         """
+        assert len(beta_d.shape) == 2 and beta_d.shape[1] == 1, beta_d
+        assert len(beta_e.shape) == 2 and beta_e.shape[1] == 1, beta_e
+
         error = shortest_distance(beta_d, beta_e)
         dbeta = self.k_beta * error
         if np.linalg.norm(error) < 1/180*math.pi * self.n_modules:  # degrees per module
@@ -216,6 +228,9 @@ class KinematicModel:
         :param mu_e: estimate of the position of the robot about the ICR.
         :param delta_t: time since the odometry was last updated.
         """
+
+        assert lmda_e.shape == (3,1), lmda_e
+
         xi_dot = (mu_e * np.array([lmda_e[1], -lmda_e[0], lmda_e[2]])).reshape(-1,1)  # Eq (2)
         theta = self.xi[2, 0]
         m3 = np.array(
@@ -235,6 +250,10 @@ class KinematicModel:
         :param lmda_e: the estimate of the ICR in h-space.
         :returns: the estimate of mu (float).
         """
+
+        assert len(phi_dot.shape) == 2 and phi_dot.shape[1] == 1, phi_dot
+        assert lmda_e.shape == (3,1), lmda_e
+
         # this requires solving equation (22) from the control paper, i think
         # we may need to look into whether this is valid for a system with no
         # wheel coupling

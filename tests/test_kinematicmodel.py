@@ -20,9 +20,9 @@ def kinematic_model():
 
 
 def test_compute_actuators_motion(kinematic_model):
-    lmda = np.array([0, 0, 1])
-    lmda_dot = np.array([0, 0, 1])
-    lmda_2dot = np.array([0, 0, -1])
+    lmda = np.array([[0], [0], [1]])
+    lmda_dot = np.array([[0], [0], [1]])
+    lmda_2dot = np.array([[0], [0], [-1]])
     mu = 1.0
     mu_dot = 1.0
 
@@ -69,11 +69,11 @@ def test_compute_actuators_motion(kinematic_model):
     assert np.isclose(phi_dot_prime[0], 20, atol=1e-2)
 
 def test_actuators_motion_reverse(kinematic_model):
-    #lmda = np.array([0, 0, 1])
-    #lmda_dot = np.array([0, 0, 1])
-    lmda = np.array([0.99978376, -0., 0.02079483])
-    lmda_dot = np.array([0.02162124, 0., -1.03951656])
-    lmda_2dot = np.array([0, 0, -51.98706951])
+    # lmda = np.array([[0], [0], [1]])
+    # lmda_dot = np.array([[0], [0], [1]])
+    lmda = np.array([[0.99978376], [-0.], [0.02079483]])
+    lmda_dot = np.array([[0.02162124], [0.], [-1.03951656]])
+    lmda_2dot = np.array([0, 0, -51.98706951]).reshape(-1, 1)
     mu = 126.4
     mu_dot = 1.0
     beta_prime, beta_2prime, phi_dot, phi_dot_prime = kinematic_model.compute_actuators_motion(
@@ -94,8 +94,8 @@ def test_actuators_motion_reverse(kinematic_model):
 
 def test_singularity_on_wheel(kinematic_model):
     lmda = cartesian_to_lambda(1, 0)  # this is the location of the first wheel
-    lmda_dot = np.array([0, 2, 1])
-    lmda_2dot = np.array([0, -1, -1])
+    lmda_dot = np.array([[0], [2], [1]])
+    lmda_2dot = np.array([[0], [-1], [-1]])
     mu = 1.0
     mu_dot = 1.0
 
@@ -124,7 +124,7 @@ def test_s_perp(kinematic_model):
 def test_estimate_mu(kinematic_model):
     lmda = cartesian_to_lambda(0, 0)  # Centre of robot
     expected = 1.0  # rad/s
-    phi_dot = np.array([expected * 1.0] * 4)
+    phi_dot = np.array([[expected * 1.0]] * 4)
     mu = kinematic_model.estimate_mu(phi_dot, lmda)
     assert np.isclose(
         mu, expected * kinematic_model.r[0], atol=0.01
@@ -133,7 +133,7 @@ def test_estimate_mu(kinematic_model):
     lmda = cartesian_to_lambda(2, 0)  # Right of robot
     expected = 1.0  # rad/s
     phi_dot = np.array(
-        [-expected * 1.0, -expected * 5.0 ** 0.5, expected * 3.0, expected * 5.0 ** 0.5]
+        [[-expected * 1.0], [-expected * 5.0 ** 0.5], [expected * 3.0], [expected * 5.0 ** 0.5]]
     )
     mu = kinematic_model.estimate_mu(phi_dot, lmda)
     assert np.isclose(mu, expected * kinematic_model.r[0], atol=0.01).all(), (
@@ -170,7 +170,7 @@ def test_compute_odometry(kinematic_model):
     y_dot = 0.1
     theta_dot = 1.0
     mu = np.linalg.norm([x_dot, y_dot, theta_dot])
-    lmda = np.array([-y_dot, x_dot, theta_dot]) / mu
+    lmda = (np.array([-y_dot, x_dot, theta_dot]) / mu).reshape(-1, 1)
     xi = kinematic_model.compute_odometry(lmda, mu, dt)
     xi = kinematic_model.compute_odometry(lmda, mu, dt)
     assert xi[0, 0] < x_dot * dt * 2
@@ -178,7 +178,7 @@ def test_compute_odometry(kinematic_model):
 
 
 def test_compute_chassis_motion_no_motion(kinematic_model):
-    lmda_d = np.array([1, 0, 0])
+    lmda_d = np.array([[1], [0], [0]])
     lmda_e = lmda_d
     mu_d = 0.0
     mu_e = mu_d

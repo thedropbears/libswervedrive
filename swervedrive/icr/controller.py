@@ -104,6 +104,7 @@ class Controller:
             return beta_c, phi_dot_c, self.kinematic_model.xi
 
         lmda_e = self.icre.estimate_lmda(modules_beta)
+        assert lmda_e.shape == (3,1), lmda_e
         mu_e = self.kinematic_model.estimate_mu(modules_phi_dot, lmda_e)
         if lmda_d is None:
             lmda_d = lmda_e
@@ -166,6 +167,13 @@ class Controller:
         :returns: beta_c, phi_dot_c (module angle and wheel angular velocity
             commands)
         """
+        # NOTE: the current code actually expects these shapes to be 1-d arrays, so will need to be changed.
+        # I suspect that this is because the class members self.b and self.r are 1d.
+        assert len(beta_dot.shape) == 2 and beta_dot.shape[0] == self.n_modules, beta_dot
+        assert len(beta_2dot.shape) == 2 and beta_2dot.shape[0] == self.n_modules, beta_2dot
+        assert len(phi_dot.shape) == 2 and phi_dot.shape[0] == self.n_modules, phi_dot
+        assert len(phi_2dot.shape) == 2 and phi_2dot.shape[0] == self.n_modules, phi_2dot
+        assert len(beta_e.shape) == 2 and beta_e.shape[0] == self.n_modules, beta_e
 
         phi_dot_c = (phi_dot - self.b / self.r * beta_dot) + (
             phi_2dot - self.b / self.r * beta_2dot
