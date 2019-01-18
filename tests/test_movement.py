@@ -18,7 +18,7 @@ def twist_to_icr(vx: float, vy: float, vz: float):
     if np.isclose(norm, 0, atol=0.01):
         return None, 0
     eta = (1 / norm) * np.array([-vy, vx, vz, norm ** 2])
-    lmda = eta[0:3]
+    lmda = eta[0:3].reshape(-1, 1)
     mu = eta[3]
     return lmda, mu
 
@@ -34,8 +34,8 @@ def test_sequential_direction_movement(twist_segments):
         [-0.5, 0.5], [-1e-6, 1e-6], [-1e-6, 1e-6], [-1e-6, 1e-6]
     )
     dt = 1.0 / 20.0
-    modules_beta = np.array([0] * 4) - c._beta_offsets
-    modules_phi_dot = np.array([0] * 4)
+    modules_beta = np.array([[0]] * 4) - c._beta_offsets
+    modules_phi_dot = np.array([[0]] * 4)
 
     for segment in twist_segments:
         iterations = 0

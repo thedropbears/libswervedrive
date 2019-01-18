@@ -195,10 +195,10 @@ class KinematicModel:
         )
 
         return (
-            np.reshape(beta_prime, (self.n_modules,)),
-            np.reshape(beta_2prime, (self.n_modules,)),
-            np.reshape(phi_dot, (self.n_modules,)),
-            np.reshape(phi_dot_prime, (self.n_modules,)),
+            np.reshape(beta_prime, (-1, 1)),
+            np.reshape(beta_2prime, (-1, 1)),
+            np.reshape(phi_dot, (-1, 1)),
+            np.reshape(phi_dot_prime, (-1, 1)),
         )
 
     def reconfigure_wheels(self, beta_d: np.ndarray, beta_e: np.ndarray):

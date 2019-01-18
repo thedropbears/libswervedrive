@@ -46,7 +46,7 @@ def test_respect_velocity_bounds(lmda_d, lmda_d_sign, lower_bounds, upper_bounds
     iterations = 0
     modules_beta = np.array([[0]] * 4)
     modules_phi_dot = np.array([[0]] * 4)
-    lmda_d = math.copysign(1, lmda_d_sign) * lmda_d / np.linalg.norm(lmda_d)
+    lmda_d = (math.copysign(1, lmda_d_sign) * lmda_d / np.linalg.norm(lmda_d)).reshape(-1, 1)
 
     mu_d = 1.0
     dt = 0.1
@@ -79,13 +79,13 @@ def test_structural_singularity_command():
     )
     # test to see what happens if we place the ICR on a structural singularity
     iterations = 0
-    modules_beta = np.array([0] * 4)
-    modules_phi_dot = np.array([0] * 4)
-    lmda_d_normal = np.array([1, 0, 0])
+    modules_beta = np.array([[0]] * 4)
+    modules_phi_dot = np.array([[0]] * 4)
+    lmda_d_normal = np.array([[1], [0], [0]])
 
     lmda_singularity = cartesian_to_lambda(
         c.l[0] * math.sin(c.alpha[0]), c.l[1] * math.sin(c.alpha[1])
-    ).reshape(3)
+    )
 
     mu_d = 0.1
     dt = 0.1
@@ -105,7 +105,7 @@ def test_structural_singularity_command():
         # check that our estimated ICR never gets close to the structural singularity,
         # despite being the setpoint
         lmda_e = c.icre.estimate_lmda(beta_cmd).reshape(3)
-        assert not all(np.isclose(lmda_e, lmda_singularity, atol=1e-2))
+        assert not np.allclose(lmda_e, lmda_singularity, atol=1e-2)
 
         beta_prev = beta_cmd
         phi_dot_prev = phi_dot_cmd

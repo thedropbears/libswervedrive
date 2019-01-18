@@ -49,6 +49,7 @@ class Controller:
         :param phi_2dot_bounds: Min/max allowable value for the angular
             acceleration of the module wheels, in rad/s^2.
         """
+        # TODO: reshape these to column vectors
         self.alpha = np.array(modules_alpha).reshape(-1)
         self.l = np.array(modules_l).reshape(-1)
         self.b = np.array(modules_b).reshape(-1)
@@ -84,10 +85,12 @@ class Controller:
         :param delta_t: time over which control step will be executed.
         :returns: beta_c, phi_dot_c, xi_e
         """
-        modules_beta = modules_beta.reshape(-1,1)
-        modules_phi_dot = modules_phi_dot.reshape(-1,1)
+
+        assert len(modules_beta.shape) == 2 and modules_beta.shape[0] == self.n_modules, modules_beta
+        assert len(modules_phi_dot.shape) == 2 and modules_phi_dot.shape[0] == self.n_modules, modules_phi_dot
+
         if lmda_d is not None:
-            lmda_d = lmda_d.reshape(-1,1)
+            assert lmda_d.shape == (3,1), lmda_d
         if self.kinematic_model.state == KinematicModel.State.RECONFIGURING:
             # we can't simply set the estimated lmda because it is poorly defined
             # in the reconfiguring state - so we must simply discard this command
@@ -95,9 +98,9 @@ class Controller:
                 return modules_beta, modules_phi_dot, self.kinematic_model.xi
             beta_d = self.icre.S(lmda_d)
             dbeta = self.kinematic_model.reconfigure_wheels(beta_d, modules_beta)
-            d2beta = np.array([0] * len(dbeta))
-            phi_dot_c = np.array([0] * len(dbeta))
-            dphi_dot_c = np.array([0] * len(dbeta))
+            d2beta = np.array([[0]] * len(dbeta))
+            phi_dot_c = np.array([[0]] * len(dbeta))
+            dphi_dot_c = np.array([[0]] * len(dbeta))
             beta_c, phi_dot_c = self.integrate_motion(
                 dbeta, d2beta, phi_dot_c, dphi_dot_c, modules_beta, delta_t
             )
@@ -145,6 +148,9 @@ class Controller:
             beta_dot, beta_2dot, phi_dot_p, phi_2dot_p, modules_beta, delta_t
         )
 
+        assert len(beta_c.shape) == 2 and beta_c.shape[0] == self.n_modules, beta_c
+        assert len(phi_dot_c.shape) == 2 and phi_dot_c.shape[0] == self.n_modules, phi_dot_c
+
         return beta_c, phi_dot_c, xi_e
 
     def integrate_motion(
@@ -175,24 +181,28 @@ class Controller:
         assert len(phi_2dot.shape) == 2 and phi_2dot.shape[0] == self.n_modules, phi_2dot
         assert len(beta_e.shape) == 2 and beta_e.shape[0] == self.n_modules, beta_e
 
-        phi_dot_c = (phi_dot - self.b / self.r * beta_dot) + (
-            phi_2dot - self.b / self.r * beta_2dot
+        # TODO: change back to using class variables once they are the correct shape
+        b = np.reshape(self.b, (-1, 1))
+        r = np.reshape(self.r, (-1, 1))
+
+        phi_dot_c = (phi_dot - np.multiply(np.divide(b, r), beta_dot)) + (
+            phi_2dot - np.multiply(np.divide(b, r), beta_2dot)
         ) * delta_t  # 40b
         # Check limits
         fd = 1.0  # scaling factor
-        for pdc in phi_dot_c:
+        for pdc in phi_dot_c.reshape(-1, 1):
             if pdc * fd > self.phi_dot_bounds[1]:
                 fd = self.phi_dot_bounds[1] / pdc
             if pdc * fd < self.phi_dot_bounds[0]:
                 fd = self.phi_dot_bounds[0] / pdc
         # Also check that we respect the rotation rate limits
         delta_beta_c = beta_dot * delta_t + 1 / 2 * beta_2dot * (delta_t ** 2)
-        for dbc in delta_beta_c:
+        for dbc in delta_beta_c.reshape(-1, 1):
             if dbc * fd > self.beta_dot_bounds[1] * delta_t:
                 fd = self.beta_dot_bounds[1] * delta_t / dbc
             if dbc * fd < self.beta_dot_bounds[0] * delta_t:
                 fd = self.beta_dot_bounds[0] * delta_t / dbc
-        beta_c = (beta_e.T + fd * delta_beta_c).reshape(-1,1)  # 40a
+        beta_c = (beta_e + fd * delta_beta_c).reshape(-1,1)  # 40a
         phi_dot_c = fd * phi_dot_c  # 42
 
         if not all(bc < self.beta_bounds[1] for bc in beta_c) or not all(

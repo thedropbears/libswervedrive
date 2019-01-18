@@ -40,6 +40,11 @@ class TimeScaler:
         :returns: upper and lower scaling bounds for 1st and 2nd time derivatives
             of s: s_dot_l, s_dot_u, s_2dot_l, s_2dot_u
         """
+
+        assert len(dbeta.shape) == 2 and dbeta.shape[1] == 1, dbeta
+        assert len(d2beta.shape) == 2 and d2beta.shape[1] == 1, d2beta
+        assert len(dphi_dot.shape) == 2 and dphi_dot.shape[1] == 1, dphi_dot
+
         s_dot_l = 0
         s_dot_u = 1
         s_2dot_l = 0
@@ -47,13 +52,13 @@ class TimeScaler:
         n_modules = len(dbeta)
         for i in range(n_modules):
             sdl, sdu = self.compute_module_s_dot_bounds(
-                dbeta[i], d2beta[i], dphi_dot[i]
+                dbeta[i,0], d2beta[i,0], dphi_dot[i,0]
             )
             s_dot_l = max(s_dot_l, sdl)
             s_dot_u = min(s_dot_u, sdu)
         for i in range(n_modules):
             s2dl, s2du = self.compute_module_s_2dot_bounds(
-                dbeta[i], d2beta[i], s_dot_u)
+                dbeta[i,0], d2beta[i,0], s_dot_u)
             s_2dot_l = max(s_2dot_l, s2dl)
             s_2dot_u = min(s_2dot_u, s2du)
 
@@ -74,6 +79,7 @@ class TimeScaler:
         :returns: upper and lower scaling bounds for 1st time derivative
         of s: s_dot_l, s_dot_u
         """
+
         if (
             in_range(dbeta, self.beta_dot_b)
             and in_range(d2beta, self.beta_2dot_b)

@@ -20,7 +20,8 @@ def unlimited_rotation_controller(
         [-1e6, 1e6],  # phi_2dot_bounds
     )
     c.kinematic_model.state = KinematicModel.State.RUNNING
-    c._beta_offsets = np.array(c.alpha - np.full((4), math.pi / 2))
+    # TODO: change this when controller internal arrays are proper column vectors
+    c._beta_offsets = np.array(c.alpha - np.full((4), math.pi / 2)).reshape(-1, 1)
     return c
 
 
