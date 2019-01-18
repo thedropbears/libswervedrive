@@ -29,7 +29,7 @@ def assert_velocity_bounds(c, delta_beta, phi_dot_cmd, dt):
 
 
 @given(
-    lmda_d=arrays(np.float, 3, elements=st.floats(min_value=1e-6, max_value=1)),
+    lmda_d=arrays(np.float, (1, 3), elements=st.floats(min_value=1e-6, max_value=1)),
     lmda_d_sign=st.floats(
         min_value=-1, max_value=1
     ),  # make this *float* to give uniform distribution
@@ -44,8 +44,8 @@ def test_respect_velocity_bounds(lmda_d, lmda_d_sign, lower_bounds, upper_bounds
     # Modules can only rotate at a maximum of 0.5 rad/s
     # Make sure the controller respects these limits
     iterations = 0
-    modules_beta = np.array([0] * 4)
-    modules_phi_dot = np.array([0] * 4)
+    modules_beta = np.array([[0]] * 4)
+    modules_phi_dot = np.array([[0]] * 4)
     lmda_d = math.copysign(1, lmda_d_sign) * lmda_d / np.linalg.norm(lmda_d)
 
     mu_d = 1.0
@@ -64,10 +64,11 @@ def test_respect_velocity_bounds(lmda_d, lmda_d_sign, lower_bounds, upper_bounds
         beta_prev = beta_cmd
         phi_dot_prev = phi_dot_cmd
         iterations += 1
+
     lmda_e = c.icre.estimate_lmda(beta_prev)
     mu_e = c.kinematic_model.estimate_mu(phi_dot_prev, lmda_e)
-    assert np.allclose(lmda_e.reshape(3), lmda_d, atol=1e-2) or np.allclose(
-        -lmda_e.reshape(3), lmda_d, atol=1e-2
+    assert np.allclose(lmda_e, lmda_d, atol=1e-2) or np.allclose(
+        -lmda_e, lmda_d, atol=1e-2
     ), "Controller did not reach target"
     assert np.isclose(mu_e, mu_d, atol=1e-2) or np.isclose(-mu_e, mu_d, atol=1e-2)
 

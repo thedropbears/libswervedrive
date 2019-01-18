@@ -7,7 +7,7 @@ class Estimator:
     # constants used in the lmda estimation algo
     eta_lmda: float = 1e-4  # TODO: figure out what values this should be
     eta_delta: float = 1e-2  # TODO: figure out what values this should be
-    min_delta_size: float = 1e-3  # TODO: figure out what value this should be
+    min_delta_size: float = 1e-2  # TODO: figure out what value this should be
     max_iter = 50  # TODO: figure out what value should be
     tolerance: float = 1e-3
 
@@ -68,6 +68,7 @@ class Estimator:
             chassis frame origin.)
         :returns: our estimate of ICR as the array (u, v, w)^T.
         """
+        assert len(q.shape) == 2 and q.shape[1] == 1, q
         starting_points = self.select_starting_points(q)
         found = False
         closest_lmda = None
@@ -82,15 +83,19 @@ class Estimator:
             else:
                 last_singularity = None
                 for i in range(self.max_iter):
-                    (S_u, S_v) = self.compute_derivatives(lmda)
+                    (S_u, S_v, S_w) = self.compute_derivatives(lmda)
                     if last_singularity is not None:
                         # if we had a singularity last time, set the derivatives
                         # for the corresponding wheel to 0
-                        S_u[last_singularity] = 0
-                        S_v[last_singularity] = 0
-                    (delta_u, delta_v) = self.solve(S_u, S_v, q, lmda)
+                        if S_u is not None:
+                            S_u[last_singularity] = 0
+                        if S_u is not None:
+                            S_v[last_singularity] = 0
+                        if S_u is not None:
+                            S_w[last_singularity] = 0
+                    (delta_u, delta_v, delta_w) = self.solve(S_u, S_v, S_w, q, lmda)
                     lmda_t, worse = self.update_parameters(
-                        lmda, delta_u, delta_v, q
+                        lmda, delta_u, delta_v, delta_w, q
                     )
                     singularity, singularity_number = self.handle_singularities(lmda_t)
                     S_lmda = self.S(lmda_t)
@@ -117,8 +122,8 @@ class Estimator:
                     if found:
                         break
             if found:
-                return np.reshape(lmda, (-1,))
-        return np.reshape(closest_lmda, (-1,))
+                return lmda.reshape(-1,1)
+        return closest_lmda.reshape(-1,1)
 
     def select_starting_points(self, q: np.ndarray):
         """
@@ -132,11 +137,11 @@ class Estimator:
         their distance to the input length.
         """
         starting_points = []
-
+        assert len(q.shape) == 2 and q.shape[1] == 1, q
         def get_p(i):
             s = column(self.s, i).reshape(-1)
             d = np.array(
-                [math.cos(q[i] + self.alpha[i]), math.sin(q[i] + self.alpha[i]), 0]
+                [math.cos(q[i, 0] + self.alpha[i]), math.sin(q[i, 0] + self.alpha[i]), 0]
             )
             p = np.cross(s, d)
             p /= np.linalg.norm(p)
@@ -148,7 +153,7 @@ class Estimator:
                 if not i > j:
                     continue
                 p_2 = get_p(j)
-                c = np.cross(p_1, p_2)
+                c = np.cross(p_1, p_2).reshape(-1,1)
                 if p_1.dot(p_2) / np.linalg.norm(p_1) * np.linalg.norm(p_2) == 1:
                     # the sine of the dot product is zero i.e. they are co-linear:
                     # Throwout cases where the two wheels being compared are co-linear
@@ -167,13 +172,38 @@ class Estimator:
         Compute the derivateves of the constraining surface at the current
         estimate of the point.
         :param lmda: position of the ICR estimate
-        :returns: np.ndarray with (S_u, S_v). S_u and S_v are the vectors
+        :returns: np.ndarray with (S_u, S_v, S_w). S_u, S_v, S_w are the vectors
             containing the derivatives of each steering angle in q with respect
-            u and v, respectively.
+            u, v and w respectively.
+            One of them will be None because that axis is parameterised in terms
+            of the other two.
         """
-        S_u = np.zeros(shape=(self.n_modules,))
-        S_v = np.zeros(shape=(self.n_modules,))
+        assert len(lmda.shape) == 2 and lmda.shape[1] == 1, lmda
+        # Define the two working axes as m and n
+        S_m = np.zeros(shape=(self.n_modules,))
+        S_n = np.zeros(shape=(self.n_modules,))
         lmda = lmda.reshape(3)  # computations require lambda as a row vector
+
+        # Work out the best hemisphere to work in
+        u = lmda.dot(np.array([1,0,0]))
+        v = lmda.dot(np.array([0,1,0]))
+        w = lmda.dot(np.array([0,0,1]))
+        dot_products = [abs(u), abs(v), abs(w)]
+        axis = dot_products.index(max(dot_products))
+        if axis == 0:
+            # Parameterise u
+            dm = np.array([[-lmda[1]/lmda[0], 1, 0]])
+            dn = np.array([[-lmda[2]/lmda[0], 0, 1]])
+        elif axis == 1:
+            # Parameterise v
+            dm = np.array([[1, -lmda[0]/lmda[1], 0]])
+            dn = np.array([[0, -lmda[2]/lmda[1], 1]])
+        else:
+            # Parameterise w
+            dm = np.array([[1, 0, -lmda[0] / lmda[2]]])
+            dn = np.array([[0, 1, -lmda[1] / lmda[2]]])
+
+
         for i in range(self.n_modules):
             # equations 16 and 17 in the paper
             a = column(self.a, i).reshape(3)
@@ -185,42 +215,64 @@ class Estimator:
             gamma_top = omega * (a - l) + delta * a_orth
             gamma_bottom = lmda.dot(delta * (a - l) - omega * a_orth)
             if abs(gamma_bottom) < self.tolerance:
-                S_u[i] = 0
-                S_v[i] = 0
+                S_m[i] = 0
+                S_n[i] = 0
                 continue
             # equation 19
-            du = np.array([1, 0, -lmda[0] / lmda[2]]).reshape(1, 3)
-            dv = np.array([0, 1, -lmda[1] / lmda[2]]).reshape(1, 3)
-            beta_u = du.dot(gamma_top) / gamma_bottom
-            beta_v = dv.dot(gamma_top) / gamma_bottom
-            S_u[i] = beta_u
-            S_v[i] = beta_v
-        return (S_u, S_v)
+            beta_m = dm.dot(gamma_top) / gamma_bottom
+            beta_n = dn.dot(gamma_top) / gamma_bottom
+            S_m[i] = beta_m
+            S_n[i] = beta_n
+        if axis == 0:
+            return None, S_m, S_n
+        if axis == 1:
+            return S_m, None, S_n
+        if axis == 2:
+            return S_m, S_n, None
 
-    def solve(self, S_u: np.ndarray, S_v: np.ndarray, q: np.ndarray, lmda: np.ndarray):
+    def solve(self, S_u: np.ndarray, S_v: np.ndarray, S_w: np.ndarray, q: np.ndarray, lmda: np.ndarray):
         """
         Solve the system of linear equations to find the free parameters
         delta_u and delta_v.
         :param S_u: derivative of constraining surface wrt u (vector).
         :param S_v: derivative of constraining surface wrt v (vector).
+        :param S_v: derivative of constraining surface wrt w (vector).
         :param q: list of angles beta representing the steer angle
         (measured relative to the orientation orthogonal to the line to the
         chassis frame origin.)
         :param lmda: position of the ICR estimate.
-        :returns: the free parameters in the form (delta_u, delta_v).
+        :returns: the free parameters in the form (delta_u, delta_v, delta_w).
         """
-        a_u = S_u.dot(S_u)
-        a_c = S_u.dot(S_v)
-        a_v = S_v.dot(S_v)
-        A = np.array([[a_u, a_c], [a_c, a_v]])
+        assert len(q.shape) == 2 and q.shape[1] == 1, q
         p_zero = self.S(lmda)
-        diff = (q - p_zero).reshape((1, -1))
-        b = np.array([diff.dot(S_u.T), diff.dot(S_v.T)])
+        diff = q - p_zero
+        if S_u is None:
+            a_u = S_v.dot(S_v)
+            a_c = S_v.dot(S_w)
+            a_v = S_w.dot(S_w)
+            b = np.array([diff.T.dot(S_v.T), diff.T.dot(S_w.T)])
+        elif S_v is None:
+            a_u = S_u.dot(S_u)
+            a_c = S_u.dot(S_w)
+            a_v = S_w.dot(S_w)
+            b = np.array([diff.T.dot(S_u.T), diff.T.dot(S_w.T)])
+        else:
+            a_u = S_u.dot(S_u)
+            a_c = S_u.dot(S_v)
+            a_v = S_v.dot(S_v)
+            b = np.array([diff.T.dot(S_u.T), diff.T.dot(S_v.T)])
+        A = np.array([[a_u, a_c], [a_c, a_v]])
         x = np.linalg.solve(A, b)
-        return x[0, 0], x[1, 0]
+        if S_u is None:
+            return None, x[0, 0], x[1, 0]
+        elif S_v is None:
+            return x[0, 0], None, x[1, 0]
+        else:
+            return x[0, 0], x[1, 0], None
+
 
     def update_parameters(
-        self, lmda: np.ndarray, delta_u: float, delta_v: float, q: np.ndarray
+        self, lmda: np.ndarray, delta_u: float, delta_v: float, delta_w: float, q: np.ndarray
     ):
         """
         Move our estimate of the ICR based on the free parameters delta_u and
@@ -231,41 +283,71 @@ class Estimator:
             estimate in the direction S_u.
         :param delta_v: free parameter defining how much to move the ICR
             estimate in the direction S_v.
+        :param delta_w: free parameter defining how much to move the ICR
+            estimate in the direction S_w.
         :param q: list of angles beta representing the steer angle
             (measured relative to the orientation orthogonal to the line to the
             chassis frame origin.)
         :returns: the new ICR estimate, a flag indicating divergence of the
             algorithm for this starting point.
         """
-        lmda_t = lmda
-        worse = False
+        # Move along the non-parameterised axes. Call these m and n
+        assert len(lmda.shape) == 2 and lmda.shape[1] == 1, lmda
+        assert lmda.shape == (3,1), lmda
+        if delta_u is None:
+            m = lmda[1, 0]
+            n = lmda[2, 0]
+            delta_m = delta_v
+            delta_n = delta_w
+            def lmda_t(m,n):
+                return np.array([[(1-m**2-n**2)**0.5], [m], [n]])  # Eq 4
+        elif delta_v is None:
+            m = lmda[0, 0]
+            n = lmda[2, 0]
+            delta_m = delta_u
+            delta_n = delta_w
+            def lmda_t(m,n):
+                return np.array([[m], [(1-m**2-n**2)**0.5], [n]])  # Eq 4
+        else:
+            m = lmda[0, 0]
+            n = lmda[1, 0]
+            delta_m = delta_u
+            delta_n = delta_v
+            def lmda_t(m,n):
+                return np.array([[m], [n], [(1-m**2-n**2)**0.5]])  # Eq 4
+
+        prev_m = m
+        prev_n = n
         # while the algorithm produces a worse than or equal to good estimate
         # for q on the surface as lmda from the previous iteration
-        while np.linalg.norm(shortest_distance(q, self.S(lmda))) <= np.linalg.norm(
-            shortest_distance(q, self.S(lmda_t))
-        ):
-            # set a minimum step size to avoid infinite recursion
-            if np.linalg.norm([delta_u, delta_v]) < self.min_delta_size:
-                worse = True
-                break
-            u = lmda[0, 0]
-            v = lmda[1, 0]
-            u_i = u + delta_u
-            v_i = u + delta_v
-            # if adding delta_u and delta_v has produced out of bounds values,
+        total_dist = np.linalg.norm(shortest_distance(q, self.S(lmda)))
+        while True:
+            m_i = m + delta_m
+            n_i = n + delta_n
+            # if adding delta_m and delta_m has produced out of bounds values,
             # recursively multiply to ensure they remain within bounds
-            while np.linalg.norm([u_i, v_i]) > 1:
-                factor = np.linalg.norm([u, v])
-                u_i *= factor
-                v_i *= factor
-            w = math.sqrt(1 - np.linalg.norm([u_i, v_i]))  # equation 4
-            lmda_t = np.array([u_i, v_i, w]).reshape(-1, 1)
-            # backtrack by reducing the step size
-            delta_u *= 0.5
-            delta_v *= 0.5
-        if lmda_t[2, 0] < 0:
-            lmda_t = -lmda_t
-        return lmda_t, worse
+            while np.linalg.norm([m_i, n_i]) > 1:
+                factor = np.linalg.norm([m_i, n_i])
+                m_i /= factor
+                n_i /= factor
+            if total_dist < np.linalg.norm(
+                    shortest_distance(q, self.S(lmda_t(m_i, n_i)))
+                ):
+                # Diverging
+                # backtrack by reducing the step size
+                delta_m *= 0.5
+                delta_n *= 0.5
+
+                # set a minimum step size to avoid infinite recursion
+                if np.linalg.norm([delta_m, delta_n]) < self.min_delta_size:
+                    # Return the previous estimate
+                    return lmda_t(prev_m, prev_n), True
+                else:
+                    prev_m = m_i
+                    prev_n = n_i
+            else:
+                return lmda_t(m_i, n_i), False
+
 
     def handle_singularities(self, lmda: np.ndarray):
         """
@@ -275,6 +357,7 @@ class Estimator:
         :returns: if the ICR is on a structural singularity, and the wheel
             number which the singularity is on if there is one
         """
+        assert len(lmda.shape) == 2 and lmda.shape[1] == 1, lmda
         wheel_number = None
         for i in range(self.n_modules):
             # equations 16 and 17 in the paper
@@ -291,19 +374,20 @@ class Estimator:
         :param lmda: the ICR to compute the point for.
         :returns: row vector expressing the point.
         """
+        assert len(lmda.shape) == 2 and lmda.shape[1] == 1, lmda
         S = np.zeros(shape=(self.n_modules,))
-        lmda = lmda.T  # computations require lambda as a row vector
         for i in range(self.n_modules):
             # equations 16 and 17 in the paper
             a = column(self.a, i)
             a_orth = column(self.a_orth, i)
             l = column(self.l_v, i)
             # fix for the out by pi issue, basically the flip-wheel function below
-            S[i] = math.atan2(lmda.dot(a_orth), lmda.dot(a - l))
+            S[i] = math.atan2(lmda.T.dot(a_orth), lmda.T.dot(a - l))
             dif_sin = math.sin(S[i])
             dif_cos = math.cos(S[i])
             S[i] = np.arctan(dif_sin / dif_cos)
         S[np.isnan(S)] = math.pi / 2
+        S = S.reshape(-1,1)
         return S
 
 
@@ -319,9 +403,10 @@ def shortest_distance(
     :returns: an array of the same length as the input arrays with each component
         as the correct distance of q from S_lmda.
     """
+    assert len(q.shape) == 2 and q.shape[1] == 1, q
     # Iterate because we have to apply joint limits
     output = np.zeros(q.shape)
-    for joint, (qi, beta_i) in enumerate(zip(q, S_lmda)):
+    for joint, (qi, beta_i) in enumerate(zip(q[0], S_lmda)):
         if beta_bounds is not None:
             bounds = beta_bounds[joint]
         else:

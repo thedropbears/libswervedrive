@@ -52,14 +52,14 @@ class KinematicModel:
         self.l_vector = np.array([[0.0] * n, [0.0] * n, l])
         self.state = KinematicModel.State.STOPPING
 
-        self.xi = np.array([[0.0] * 3])  # Odometry
+        self.xi = np.array([[0.0]] * 3)  # Odometry
 
         singularities_cartesian = np.array(
             [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha))]
         ).T
         singularities_lmda = np.array(
             [
-                cartesian_to_lambda(s[0], s[1]).reshape(-1)
+                cartesian_to_lambda(s[0], s[1])
                 for s in singularities_cartesian
             ]
         )
@@ -92,7 +92,7 @@ class KinematicModel:
         """
 
         # Because +lmda and -lmda are the same, we should choose the closest one
-        if lmda_d.dot(lmda_e) < 0:
+        if lmda_d.T.dot(lmda_e) < 0:
             lmda_d = -lmda_d
             mu_d = -mu_d
 
@@ -103,14 +103,14 @@ class KinematicModel:
 
         # TODO: figure out what the tolerance should be
         on_singularity = any(
-            all(np.isclose(lmda_d, s, atol=1e-2)) for s in self.singularities
+                lmda_d.T.dot(s) >= 0.99 for s in self.singularities
         )
         if on_singularity:
             lmda_d = lmda_e
 
-        dlmda = k_b * k_lmda * (lmda_d - (lmda_e.dot(lmda_d)) * lmda_e)
+        dlmda = k_b * k_lmda * (lmda_d - (lmda_e.T.dot(lmda_d)) * lmda_e)
 
-        d2lmda = k_b ** 2 * k_lmda ** 2 * ((lmda_e.dot(lmda_d)) * lmda_d - lmda_e)
+        d2lmda = k_b ** 2 * k_lmda ** 2 * ((lmda_e.T.dot(lmda_d)) * lmda_d - lmda_e)
 
         dmu = k_b * k_mu * (mu_d - mu_e)
 
@@ -216,16 +216,16 @@ class KinematicModel:
         :param mu_e: estimate of the position of the robot about the ICR.
         :param delta_t: time since the odometry was last updated.
         """
-        xi_dot = mu_e * np.array([[lmda_e[1]], [-lmda_e[0]], [lmda_e[2]]])  # Eq (2)
-        theta = self.xi[0, 2]
+        xi_dot = (mu_e * np.array([lmda_e[1], -lmda_e[0], lmda_e[2]])).reshape(-1,1)  # Eq (2)
+        theta = self.xi[2, 0]
         m3 = np.array(
             [
-                [np.cos(theta), -np.sin(theta), 0],
-                [np.sin(theta), np.cos(theta), 0],
+                [math.cos(theta), -math.sin(theta), 0],
+                [math.sin(theta), math.cos(theta), 0],
                 [0, 0, 1],
             ]
         )
-        self.xi += np.matmul(m3, xi_dot).T * delta_t  # Eq (24)
+        self.xi += np.matmul(m3, xi_dot) * delta_t  # Eq (24)
         return self.xi
 
     def estimate_mu(self, phi_dot: np.ndarray, lmda_e):

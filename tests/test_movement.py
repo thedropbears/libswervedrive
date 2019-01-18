@@ -48,7 +48,12 @@ def test_sequential_direction_movement(twist_segments):
             modules_phi_dot = phi_dot_cmd
             iterations += 1
         angles_robot = modules_beta + c._beta_offsets
-        robot_twist = swerve_solver(modules_phi_dot, angles_robot, c.alpha, c.l)
+        robot_twist = swerve_solver(
+            modules_phi_dot.reshape(-1),
+            angles_robot.reshape(-1),
+            c.alpha.reshape(-1),
+            c.l.reshape(-1),
+        )
         assert np.allclose(robot_twist, segment, atol=1e-1)
 
 
