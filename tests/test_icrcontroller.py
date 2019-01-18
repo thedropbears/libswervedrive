@@ -17,7 +17,7 @@ def unlimited_rotation_controller():
         np.array([1] * 4),  # modules_l
         np.array([0] * 4),  # modules_b
         np.array([0.1] * 4),  # modules_r
-        np.array([0] * 3),  # epsilon_init
+        np.array([[0]] * 3),  # epsilon_init
         [-2 * math.pi, 2 * math.pi],  # beta_bounds
         [-0.5, 0.5],  # beta_dot_bounds
         [-1e6, 1e6],  # beta_2dot_bounds
@@ -57,9 +57,9 @@ def test_respect_velocity_bounds(unlimited_rotation_controller):
     # Modules can only rotate at a maximum of 0.5 rad/s
     # Make sure the controller respects these limits
     iterations = 0
-    modules_beta = np.array([0] * 4)
-    modules_phi_dot = np.array([0] * 4)
-    lmda_d = np.array([1, 0, 0])
+    modules_beta = np.array([[0]] * 4)
+    modules_phi_dot = np.array([[0]] * 4)
+    lmda_d = np.array([[1], [0], [0]])
 
     mu_d = 1.0
     dt = 0.1
@@ -79,7 +79,7 @@ def test_respect_velocity_bounds(unlimited_rotation_controller):
         iterations += 1
     lmda_e = unlimited_rotation_controller.icre.estimate_lmda(beta_prev)
     assert all(
-        np.isclose(lmda_e.reshape(3),
+        np.isclose(lmda_e,
                    lmda_d,
                    atol=1e-2)
     ), "Controller did not reach target"

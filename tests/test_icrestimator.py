@@ -40,20 +40,20 @@ def qua(icre, beta, q):
 def test_estimate_lambda():
     icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1], [0, 0, 0])
 
-    q = np.zeros(shape=(3,))  # ICR on the robot's origin
-    desired_lmda = c2l(0, 0).T
+    q = np.array([[0],[0],[0]])  # ICR on the robot's origin
+    desired_lmda = c2l(0, 0)
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
 
-    q = np.array([math.pi / 4, 0, -math.pi / 4])
-    desired_lmda = c2l(0, -1).T
+    q = np.array([[math.pi / 4], [0], [-math.pi / 4]])
+    desired_lmda = c2l(0, -1)
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
 
     # driving along the y axis
-    q = np.array([0, math.pi / 2, 0])
+    q = np.array([[0], [math.pi / 2], [0]])
     # so the ICR should be on the U axis
-    desired_lmda = c2l(1e20, 0).T  # Rotation about infinity on x-axis
+    desired_lmda = c2l(1e20, 0)  # Rotation about infinity on x-axis
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
 
@@ -64,14 +64,14 @@ def test_estimate_lambda():
     icre = init_icre(alphas, [1] * 4, [0, 0, 0, 0])
 
     # test case from the simulator
-    q = np.array([0.0, 0.0, math.pi, math.pi])
-    desired_lmda = np.array([0, 0, 1]).T
+    q = np.array([[0.0], [0.0], [math.pi], [math.pi]])
+    desired_lmda = np.array([[0], [0], [1]])
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
 
     # ICR on a wheel, should be a singularity
-    q = np.array([-math.pi / 4, 0, math.pi / 4, 0])
-    desired_lmda = c2l(0, 1).T
+    q = np.array([[-math.pi / 4], [0], [math.pi / 4], [0]])
+    desired_lmda = c2l(0, 1)
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
     singularity, wheel = icre.handle_singularities(lmda_e)
@@ -84,13 +84,13 @@ def test_estimate_lambda():
     # ICR on one side of the robot frame between wheels 1 and 2
     q = np.array(
         [
-            -(math.atan(2 / 1) - math.pi / 4),
-            -math.pi / 4,
-            math.pi / 4,
-            math.atan(2 / 1) - math.pi / 4,
+            [-(math.atan(2 / 1) - math.pi / 4)],
+            [-math.pi / 4],
+            [math.pi / 4],
+            [math.atan(2 / 1) - math.pi / 4],
         ]
     )
-    desired_lmda = c2l(-1, 0).T
+    desired_lmda = c2l(-1, 0)
     lmda_e = icre.estimate_lmda(q)
     assert np.allclose(desired_lmda, lmda_e, atol=tolerance)
 
@@ -178,10 +178,10 @@ def test_estimate_lambda_under_uncertainty():
 def test_joint_space_conversion():
     icre = init_icre([math.pi / 4], [1], [0])
     lmda = np.array([0, 0, -1]).reshape(-1, 1)
-    beta_target = np.array([0])
+    beta_target = np.array([0]).reshape(-1, 1)
     assert np.allclose(beta_target, icre.S(lmda))
     lmda = np.array([0, -1, 0]).reshape(-1, 1)
-    beta_target = np.array([math.pi / 4])
+    beta_target = np.array([math.pi / 4]).reshape(-1, 1)
     assert np.allclose(beta_target, icre.S(lmda))
 
     # square robot with side length of 2 to make calculations simpler
@@ -189,7 +189,7 @@ def test_joint_space_conversion():
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
     icre = init_icre(alphas, [math.sqrt(2)] * 4, [0] * 4)
 
-    icr = np.array([-1, 0, 1])
+    icr = np.array([-1, 0, 1]).reshape(-1, 1)
     lmda = icr * 1 / np.linalg.norm(icr)
     beta_target = np.array(
         [
@@ -198,7 +198,7 @@ def test_joint_space_conversion():
             math.pi / 4,
             math.acos(6 / (2 * math.sqrt(10))),
         ]
-    )
+    ).reshape(-1, 1)
     assert np.allclose(beta_target, icre.S(lmda), atol=tolerance)
 
 
@@ -208,8 +208,9 @@ def test_solve():
     lmda = np.array([0, -1, 0]).reshape(-1, 1)
     S_u = np.array([1 / math.sqrt(2), 1 / math.sqrt(2), 0])
     S_v = np.array([0, 0, 1])
-    q = np.array([0, 0, 0])
-    icre.solve(S_u, S_v, q, lmda)
+    S_w = None
+    q = np.array([0, 0, 0]).reshape(-1, 1)
+    icre.solve(S_u, S_v, S_w, q, lmda)
 
 
 def test_compute_derivatives():
@@ -218,7 +219,7 @@ def test_compute_derivatives():
         [0, math.pi / 2, math.pi, math.pi * 3 / 4], [1, 1, 1, 1], [0, 0, 0, 0]
     )
     lmda = np.array([0, 0, -1]).reshape(-1, 1)
-    S_u, S_v = icre.compute_derivatives(lmda)
+    S_u, S_v, S_w = icre.compute_derivatives(lmda)
 
 
 def test_handle_singularities():
@@ -238,31 +239,29 @@ def test_handle_singularities():
 
 def test_update_parameters():
     icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1], [0, 0, 0])
-    q = np.zeros(shape=(3,))  # ICR on the robot's origin
-    desired_lmda = np.array([0, 0, 1])
-    u, v = -0.1, -0.1  # ICR estimate too negative
-    lmda_estimate = np.array([u, v, math.sqrt(1 - np.linalg.norm([u, v]))]).reshape(
-        -1, 1
-    )
-    delta_u, delta_v = 0.1, 0.1
-    lmda_t, worse = icre.update_parameters(lmda_estimate, delta_u, delta_v, q)
-    assert np.allclose(lmda_t.T, desired_lmda)
+    q = np.array([[0],[0],[0]])  # ICR on the robot's origin
+    desired_lmda = np.array([[0], [0], [1]])
+    u, v = -0.7, -0.7  # ICR estimate both negative
+    lmda_estimate = np.array([[u], [v], [math.sqrt(1 - np.linalg.norm([u, v]))]])
+    delta_u, delta_v, delta_w = 0.7, 0.7, None
+    lmda_t, worse = icre.update_parameters(lmda_estimate, delta_u, delta_v, delta_w, q)
+    assert np.allclose(lmda_t, desired_lmda)
     assert not worse
-    delta_u, delta_v = -0.1, -0.1
-    lmda_t, worse = icre.update_parameters(lmda_estimate, delta_u, delta_v, q)
-    assert worse
+    delta_u, delta_v, delta_w = -0.7, -0.7, None
+    lmda_t, worse = icre.update_parameters(lmda_estimate, delta_u, delta_v, delta_w, q)
+    assert worse, lmda_t
 
 
 def test_select_starting_points():
     icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1], [0, 0, 0])
-    q = np.zeros(shape=(3,))  # ICR on the robot's origin
-    desired_lmda = np.array([0, 0, -1])
+    q = np.array([[0]]*3)  # ICR on the robot's origin
+    desired_lmda = np.array([[0], [0], [-1]])
     starting_points = icre.select_starting_points(q)
     for sp in starting_points:
         assert np.allclose(desired_lmda[:2], sp[:2])
 
-    q = np.array([math.pi / 4, 0, -math.pi / 4])
-    icr = np.array([0, -1, 1]).reshape(-1, 1)
+    q = np.array([[math.pi / 4], [0], [-math.pi / 4]])
+    icr = np.array([[0], [-1], [1]])
     desired_lmda = icr * 1 / np.linalg.norm(icr)
     starting_points = icre.select_starting_points(q)
     assert np.allclose(desired_lmda[:2], starting_points[0][:2])
@@ -271,9 +270,9 @@ def test_select_starting_points():
         assert np.isclose(np.linalg.norm(sp), 1)
 
     # driving along the y axis
-    q = np.array([0, math.pi / 2, 0])
+    q = np.array([[0], [math.pi / 2], [0]])
     # so the ICR should be on the U axis
-    desired_lmda = np.array([1, 0, 0]).reshape(-1, 1)
+    desired_lmda = np.array([[1], [0], [0]])
     starting_points = icre.select_starting_points(q)
     assert np.allclose(desired_lmda[:2], (starting_points[0][:2]))
     for sp in starting_points:
@@ -287,12 +286,12 @@ def test_select_starting_points():
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
     icre = init_icre(alphas, [1] * 4, [0] * 4)
 
-    q = np.array([6.429e-04, -6.429e-04, 3.1422, 3.1409])
-    desired_lmda = np.array([0, 0, 1])
+    q = np.array([[0], [0], [math.pi], [math.pi]])
+    desired_lmda = np.array([[0], [0], [1]])
     sp = icre.select_starting_points(q)
     close = []
     for p in sp:
-        close.append(np.allclose(desired_lmda, p.T, atol=tolerance))
+        close.append(np.allclose(desired_lmda, p, atol=tolerance))
     assert any(close)
 
     # Another square robot with side length of 2 to make calculations simpler
@@ -303,38 +302,35 @@ def test_select_starting_points():
     # two perpendiculars meet at a point halfway between the first two wheel. - currently failing
     q = np.array(
         [
-            -math.acos(6 / (2 * math.sqrt(10))),
-            -math.pi / 4,
-            math.pi / 4,
-            math.acos(6 / (2 * math.sqrt(10))),
+            [-math.acos(6 / (2 * math.sqrt(10)))],
+            [-math.pi / 4],
+            [math.pi / 4],
+            [math.acos(6 / (2 * math.sqrt(10)))],
         ]
     )
-    icr = np.array([-1, 0, 1])
+    icr = np.array([[-1], [0], [1]])
     desired_lmda = icr * 1 / np.linalg.norm(icr)
     sp = icre.select_starting_points(q)
     close = []
     for p in sp:
-        close.append(np.allclose(desired_lmda, p.T, atol=tolerance))
+        close.append(np.allclose(desired_lmda, p, atol=tolerance))
     assert any(close)
 
 
 def test_shortest_distance():
     from swervedrive.icr.estimator import shortest_distance
-
+    def check_aligned(a, b):
+        assert abs(a.dot(b)[0,0]/(np.linalg.norm(a)*np.linalg.norm(b))) - 1 < tolerance
     # S_lmda on robot origin
     alpha = math.pi / 4  # 45 degrees
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
-    q = np.array([2 * math.pi, 7 * math.pi, math.pi / 2, math.pi])
+    q = np.array([[2 * math.pi], [7 * math.pi], [math.pi / 2], [math.pi]])
     icre = init_icre(alphas, [1] * 4, q)
     S_lmda = np.array([0] * 4)
-    assert (
-        np.linalg.norm(shortest_distance(q, S_lmda) - np.array([0, 0, math.pi / 2, 0]))
-        < tolerance
-    )
+    check_aligned(shortest_distance(q, S_lmda),
+        np.array([[0], [0], [-math.pi / 2], [0]]).T)
 
-    q = np.array([-2 * math.pi, -7 * math.pi, -math.pi / 2, -math.pi])
-    S_lmda = np.array([0] * 4)
-    assert (
-        np.linalg.norm(shortest_distance(q, S_lmda) - np.array([0, 0, -math.pi / 2, 0]))
-        < tolerance
-    )
+    q = np.array([[-2 * math.pi], [-7 * math.pi], [-math.pi / 2], [-math.pi]])
+    S_lmda = np.array([[0]] * 4)
+    check_aligned(shortest_distance(q, S_lmda),
+        np.array([[0], [0], [-math.pi / 2], [0]]).T)

@@ -49,10 +49,10 @@ class Controller:
         :param phi_2dot_bounds: Min/max allowable value for the angular
             acceleration of the module wheels, in rad/s^2.
         """
-        self.alpha = modules_alpha
-        self.l = modules_l
-        self.b = modules_b
-        self.r = modules_r
+        self.alpha = np.array(modules_alpha).reshape(-1)
+        self.l = np.array(modules_l).reshape(-1)
+        self.b = np.array(modules_b).reshape(-1)
+        self.r = np.array(modules_r).reshape(-1)
         self.n_modules = len(self.alpha)
         self.beta_bounds = beta_bounds
         self.beta_dot_bounds = beta_dot_bounds
@@ -84,6 +84,10 @@ class Controller:
         :param delta_t: time over which control step will be executed.
         :returns: beta_c, phi_dot_c, xi_e
         """
+        modules_beta = modules_beta.reshape(-1,1)
+        modules_phi_dot = modules_phi_dot.reshape(-1,1)
+        if lmda_d is not None:
+            lmda_d = lmda_d.reshape(-1,1)
         if self.kinematic_model.state == KinematicModel.State.RECONFIGURING:
             # we can't simply set the estimated lmda because it is poorly defined
             # in the reconfiguring state - so we must simply discard this command
@@ -180,7 +184,7 @@ class Controller:
                 fd = self.beta_dot_bounds[1] * delta_t / dbc
             if dbc * fd < self.beta_dot_bounds[0] * delta_t:
                 fd = self.beta_dot_bounds[0] * delta_t / dbc
-        beta_c = beta_e + fd * delta_beta_c  # 40a
+        beta_c = (beta_e.T + fd * delta_beta_c).reshape(-1,1)  # 40a
         phi_dot_c = fd * phi_dot_c  # 42
 
         if not all(bc < self.beta_bounds[1] for bc in beta_c) or not all(

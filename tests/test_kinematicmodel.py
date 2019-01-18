@@ -147,24 +147,24 @@ def test_compute_odometry(kinematic_model):
     y_dot = 1.0
     theta_dot = 0.0
     mu = np.linalg.norm([x_dot, y_dot, theta_dot])
-    lmda = np.array([-y_dot, x_dot, theta_dot]) / mu
+    lmda = (np.array([-y_dot, x_dot, theta_dot]) / mu).reshape(-1,1)
     dt = 0.1
 
     xi = kinematic_model.compute_odometry(lmda, mu, dt)
-    assert np.isclose(xi, np.array([x_dot * dt, y_dot * dt, 0.0]), atol=1e-2).all()
+    assert np.isclose(xi, np.array([x_dot * dt, y_dot * dt, 0.0]).reshape(-1,1), atol=1e-2).all()
 
     # Reset the odometry
-    kinematic_model.xi[0, 0] = kinematic_model.xi[0, 1] = 0.0
-    kinematic_model.xi[0, 2] = math.pi / 2
+    kinematic_model.xi[0, 0] = kinematic_model.xi[1, 0] = 0.0
+    kinematic_model.xi[2, 0] = math.pi / 2
 
     xi = kinematic_model.compute_odometry(lmda, mu, dt)
     assert np.isclose(
-        xi, np.array([-x_dot * dt, y_dot * dt, math.pi / 2]), atol=1e-2
+        xi, np.array([-x_dot * dt, y_dot * dt, math.pi / 2]).reshape(-1,1), atol=1e-2
     ).all()
 
     # Reset the odometry
-    kinematic_model.xi[0, 0] = kinematic_model.xi[0, 1] = 0.0
-    kinematic_model.xi[0, 2] = math.pi / 2
+    kinematic_model.xi[0, 0] = kinematic_model.xi[1, 0] = 0.0
+    kinematic_model.xi[2, 0] = math.pi / 2
 
     x_dot = 1.0
     y_dot = 0.1
@@ -174,7 +174,7 @@ def test_compute_odometry(kinematic_model):
     xi = kinematic_model.compute_odometry(lmda, mu, dt)
     xi = kinematic_model.compute_odometry(lmda, mu, dt)
     assert xi[0, 0] < x_dot * dt * 2
-    assert xi[0, 1] > y_dot * dt * 2
+    assert xi[1, 0] > y_dot * dt * 2
 
 
 def test_compute_chassis_motion_no_motion(kinematic_model):
