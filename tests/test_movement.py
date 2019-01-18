@@ -1,34 +1,11 @@
-from swervedrive.icr import Controller
-from swervedrive.icr.kinematicmodel import KinematicModel
-
 import math
 import numpy as np
-
-import pytest
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
-
-@pytest.fixture
-def unlimited_rotation_controller():
-    c = Controller(
-        np.array([0, math.pi / 2, math.pi, math.pi * 3 / 4]),  # modules_alpha
-        np.array([1] * 4),  # modules_l
-        np.array([0] * 4),  # modules_b
-        np.array([0.1] * 4),  # modules_r
-        np.array([0] * 3),  # epsilon_init
-        [-2 * math.pi, 2 * math.pi],  # beta_bounds
-        [-10, 10],  # beta_dot_bounds
-        [-50, 50],  # beta_2dot_bounds
-        [-3, 3],  # phi_dot_bounds
-        [-5, 5],  # phi_2dot_bounds
-    )
-    c.kinematic_model.state = KinematicModel.State.RUNNING
-    # when added, offsets go from beta angles to normal robot frame angles
-    c._beta_offsets = np.array(c.alpha - np.full((4), math.pi/2))
-    return c
+from .helpers import unlimited_rotation_controller
 
 
 def twist_to_icr(vx: float, vy: float, vz: float):
@@ -46,33 +23,36 @@ def twist_to_icr(vx: float, vy: float, vz: float):
     return lmda, mu
 
 
-@given(twist_segments=arrays(np.float, (3, 3), elements=st.floats(min_value=-4, max_value=4)))
+@given(
+    twist_segments=arrays(
+        np.float, (3, 3), elements=st.floats(min_value=-4, max_value=4)
+    )
+)
 @settings(deadline=1000)
-def test_sequential_direction_movement(unlimited_rotation_controller, twist_segments):
-    dt = 1./20.
-    modules_beta = np.array([0] * 4) - unlimited_rotation_controller._beta_offsets
+def test_sequential_direction_movement(twist_segments):
+    c = unlimited_rotation_controller(
+        [-0.5, 0.5], [-1e-6, 1e-6], [-1e-6, 1e-6], [-1e-6, 1e-6]
+    )
+    dt = 1.0 / 20.0
+    modules_beta = np.array([0] * 4) - c._beta_offsets
     modules_phi_dot = np.array([0] * 4)
 
     for segment in twist_segments:
         iterations = 0
-        while iterations < 100:
+        while iterations < 50:
             lmda_d, mu_d = twist_to_icr(*segment)
-            beta_cmd, phi_dot_cmd, xi_e = unlimited_rotation_controller.control_step(
+            beta_cmd, phi_dot_cmd, xi_e = c.control_step(
                 modules_beta, modules_phi_dot, lmda_d, mu_d, dt
             )
             modules_beta = beta_cmd
             modules_phi_dot = phi_dot_cmd
             iterations += 1
-        angles_robot = (modules_beta + unlimited_rotation_controller._beta_offsets)
-        robot_twist = swerve_solver(modules_phi_dot, angles_robot,
-                                    unlimited_rotation_controller.alpha,
-                                    unlimited_rotation_controller.l)
-        assert np.allclose(robot_twist, segment, atol=1e-2)
+        angles_robot = modules_beta + c._beta_offsets
+        robot_twist = swerve_solver(modules_phi_dot, angles_robot, c.alpha, c.l)
+        assert np.allclose(robot_twist, segment, atol=1e-1)
 
 
-def swerve_solver(
-    module_speeds, module_angles, modules_alpha, modules_l
-):
+def swerve_solver(module_speeds, module_angles, modules_alpha, modules_l):
     """Solve the least-squares of the speed and angles of four swerve modules
     to retrieve delta x and y in the robot frame.
 
