@@ -122,8 +122,8 @@ class Estimator:
                     if found:
                         break
             if found:
-                return lmda.reshape(-1,1)
-        return closest_lmda.reshape(-1,1)
+                return lmda.reshape(-1, 1)
+        return closest_lmda.reshape(-1, 1)
 
     def select_starting_points(self, q: np.ndarray):
         """
@@ -138,10 +138,15 @@ class Estimator:
         """
         starting_points = []
         assert len(q.shape) == 2 and q.shape[1] == 1, q
+
         def get_p(i):
             s = column(self.s, i).reshape(-1)
             d = np.array(
-                [math.cos(q[i, 0] + self.alpha[i]), math.sin(q[i, 0] + self.alpha[i]), 0]
+                [
+                    math.cos(q[i, 0] + self.alpha[i]),
+                    math.sin(q[i, 0] + self.alpha[i]),
+                    0,
+                ]
             )
             p = np.cross(s, d)
             p /= np.linalg.norm(p)
@@ -153,7 +158,7 @@ class Estimator:
                 if not i > j:
                     continue
                 p_2 = get_p(j)
-                c = np.cross(p_1, p_2).reshape(-1,1)
+                c = np.cross(p_1, p_2).reshape(-1, 1)
                 if p_1.dot(p_2) / np.linalg.norm(p_1) * np.linalg.norm(p_2) == 1:
                     # the sine of the dot product is zero i.e. they are co-linear:
                     # Throwout cases where the two wheels being compared are co-linear
@@ -185,24 +190,23 @@ class Estimator:
         lmda = lmda.reshape(3)  # computations require lambda as a row vector
 
         # Work out the best hemisphere to work in
-        u = lmda.dot(np.array([1,0,0]))
-        v = lmda.dot(np.array([0,1,0]))
-        w = lmda.dot(np.array([0,0,1]))
+        u = lmda.dot(np.array([1, 0, 0]))
+        v = lmda.dot(np.array([0, 1, 0]))
+        w = lmda.dot(np.array([0, 0, 1]))
         dot_products = [abs(u), abs(v), abs(w)]
         axis = dot_products.index(max(dot_products))
         if axis == 0:
             # Parameterise u
-            dm = np.array([[-lmda[1]/lmda[0], 1, 0]])
-            dn = np.array([[-lmda[2]/lmda[0], 0, 1]])
+            dm = np.array([[-lmda[1] / lmda[0], 1, 0]])
+            dn = np.array([[-lmda[2] / lmda[0], 0, 1]])
         elif axis == 1:
             # Parameterise v
-            dm = np.array([[1, -lmda[0]/lmda[1], 0]])
-            dn = np.array([[0, -lmda[2]/lmda[1], 1]])
+            dm = np.array([[1, -lmda[0] / lmda[1], 0]])
+            dn = np.array([[0, -lmda[2] / lmda[1], 1]])
         else:
             # Parameterise w
             dm = np.array([[1, 0, -lmda[0] / lmda[2]]])
             dn = np.array([[0, 1, -lmda[1] / lmda[2]]])
-
 
         for i in range(self.n_modules):
             # equations 16 and 17 in the paper
@@ -230,7 +234,14 @@ class Estimator:
         if axis == 2:
             return S_m, S_n, None
 
-    def solve(self, S_u: np.ndarray, S_v: np.ndarray, S_w: np.ndarray, q: np.ndarray, lmda: np.ndarray):
+    def solve(
+        self,
+        S_u: np.ndarray,
+        S_v: np.ndarray,
+        S_w: np.ndarray,
+        q: np.ndarray,
+        lmda: np.ndarray,
+    ):
         """
         Solve the system of linear equations to find the free parameters
         delta_u and delta_v.
@@ -270,9 +281,13 @@ class Estimator:
         else:
             return x[0, 0], x[1, 0], None
 
-
     def update_parameters(
-        self, lmda: np.ndarray, delta_u: float, delta_v: float, delta_w: float, q: np.ndarray
+        self,
+        lmda: np.ndarray,
+        delta_u: float,
+        delta_v: float,
+        delta_w: float,
+        q: np.ndarray,
     ):
         """
         Move our estimate of the ICR based on the free parameters delta_u and
@@ -293,28 +308,33 @@ class Estimator:
         """
         # Move along the non-parameterised axes. Call these m and n
         assert len(lmda.shape) == 2 and lmda.shape[1] == 1, lmda
-        assert lmda.shape == (3,1), lmda
+        assert lmda.shape == (3, 1), lmda
         if delta_u is None:
             m = lmda[1, 0]
             n = lmda[2, 0]
             delta_m = delta_v
             delta_n = delta_w
-            def lmda_t(m,n):
-                return np.array([[(1-m**2-n**2)**0.5], [m], [n]])  # Eq 4
+
+            def lmda_t(m, n):
+                return np.array([[(1 - m ** 2 - n ** 2) ** 0.5], [m], [n]])  # Eq 4
+
         elif delta_v is None:
             m = lmda[0, 0]
             n = lmda[2, 0]
             delta_m = delta_u
             delta_n = delta_w
-            def lmda_t(m,n):
-                return np.array([[m], [(1-m**2-n**2)**0.5], [n]])  # Eq 4
+
+            def lmda_t(m, n):
+                return np.array([[m], [(1 - m ** 2 - n ** 2) ** 0.5], [n]])  # Eq 4
+
         else:
             m = lmda[0, 0]
             n = lmda[1, 0]
             delta_m = delta_u
             delta_n = delta_v
-            def lmda_t(m,n):
-                return np.array([[m], [n], [(1-m**2-n**2)**0.5]])  # Eq 4
+
+            def lmda_t(m, n):
+                return np.array([[m], [n], [(1 - m ** 2 - n ** 2) ** 0.5]])  # Eq 4
 
         prev_m = m
         prev_n = n
@@ -331,8 +351,8 @@ class Estimator:
                 m_i /= factor
                 n_i /= factor
             if total_dist < np.linalg.norm(
-                    shortest_distance(q, self.S(lmda_t(m_i, n_i)))
-                ):
+                shortest_distance(q, self.S(lmda_t(m_i, n_i)))
+            ):
                 # Diverging
                 # backtrack by reducing the step size
                 delta_m *= 0.5
@@ -347,7 +367,6 @@ class Estimator:
                     prev_n = n_i
             else:
                 return lmda_t(m_i, n_i), False
-
 
     def handle_singularities(self, lmda: np.ndarray):
         """
@@ -387,7 +406,7 @@ class Estimator:
             dif_cos = math.cos(S[i])
             S[i] = np.arctan(dif_sin / dif_cos)
         S[np.isnan(S)] = math.pi / 2
-        S = S.reshape(-1,1)
+        S = S.reshape(-1, 1)
         return S
 
 
