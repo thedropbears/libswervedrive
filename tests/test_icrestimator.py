@@ -9,12 +9,11 @@ global tolerance
 tolerance = 0.05
 
 
-def init_icre(alphas, ls, bs):
-    alphas = np.array(alphas)
-    ls = np.array(ls)
-    bs = np.array(bs)
+def init_icre(alphas, ls):
+    alphas = np.array(alphas).reshape(-1, 1)
+    ls = np.array(ls).reshape(-1, 1)
     epsilon = np.zeros(shape=(3, 1))
-    icre = Estimator(epsilon, alphas, ls, bs)
+    icre = Estimator(epsilon, alphas, ls)
     return icre
 
 
@@ -38,7 +37,7 @@ def qua(icre, beta, q):
 
 
 def test_estimate_lambda():
-    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1], [0, 0, 0])
+    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1])
 
     q = np.array([[0],[0],[0]])  # ICR on the robot's origin
     desired_lmda = c2l(0, 0)
@@ -61,7 +60,7 @@ def test_estimate_lambda():
     # alpha value is pi/4 and the distance from the centre of the robot to each module
     # is the same
     alphas = np.arange(4) * math.pi / 2
-    icre = init_icre(alphas, [1] * 4, [0, 0, 0, 0])
+    icre = init_icre(alphas, [1] * 4)
 
     # test case from the simulator
     q = np.array([[0.0], [0.0], [math.pi], [math.pi]])
@@ -80,7 +79,7 @@ def test_estimate_lambda():
 
     # Another square robot with side length of 2 to make calculations simpler
     alphas += math.pi / 4
-    icre = init_icre(alphas, [math.sqrt(2)] * 4, [0] * 4)
+    icre = init_icre(alphas, [math.sqrt(2)] * 4)
     # ICR on one side of the robot frame between wheels 1 and 2
     q = np.array(
         [
@@ -106,18 +105,16 @@ def test_estimate_lambda():
 def test_estimate_lambda_under_uncertainty():
     # Previous tests with not-quite-converged q values
     req_closeness = 0.90
-    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1], [0, 0, 0])
+    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1])
 
     q = np.zeros(shape=(3,))  # ICR on the robot's origin
     q = fuzz_q(q)
-    desired_lmda = c2l(0, 0).T
     lmda_e = icre.estimate_lmda(q)
     closeness = qua(icre, icre.S(lmda_e), q)
     assert closeness > req_closeness
 
     q = np.array([math.pi / 4, 0, -math.pi / 4])
     q = fuzz_q(q)
-    desired_lmda = c2l(0, -1).T
     lmda_e = icre.estimate_lmda(q)
     closeness = qua(icre, icre.S(lmda_e), q)
     assert closeness > req_closeness
@@ -126,7 +123,6 @@ def test_estimate_lambda_under_uncertainty():
     q = np.array([0, math.pi / 2, 0])
     q = fuzz_q(q)
     # so the ICR should be on the U axis
-    desired_lmda = c2l(1e20, 0).T  # Rotation about infinity on x-axis
     lmda_e = icre.estimate_lmda(q)
     closeness = qua(icre, icre.S(lmda_e), q)
     assert closeness > req_closeness
@@ -135,12 +131,11 @@ def test_estimate_lambda_under_uncertainty():
     # alpha value is pi/4 and the distance from the centre of the robot to each module
     # is the same
     alphas = np.arange(4) * math.pi / 2
-    icre = init_icre(alphas, [1] * 4, [0, 0, 0, 0])
+    icre = init_icre(alphas, [1] * 4)
 
     # test case from the simulator
     q = np.array([0.0, 0.0, math.pi, math.pi])
     q = fuzz_q(q)
-    desired_lmda = np.array([0, 0, 1]).T
     lmda_e = icre.estimate_lmda(q)
     closeness = qua(icre, icre.S(lmda_e), q)
     assert closeness > req_closeness
@@ -148,7 +143,6 @@ def test_estimate_lambda_under_uncertainty():
     # ICR on a wheel, should be a singularity
     q = np.array([-math.pi / 4, 0, math.pi / 4, 0])
     q = fuzz_q(q)
-    desired_lmda = c2l(0, 1).T
     lmda_e = icre.estimate_lmda(q)
     closeness = qua(icre, icre.S(lmda_e), q)
     assert closeness > req_closeness
@@ -158,7 +152,7 @@ def test_estimate_lambda_under_uncertainty():
 
     # Another square robot with side length of 2 to make calculations simpler
     alphas += math.pi / 4
-    icre = init_icre(alphas, [math.sqrt(2)] * 4, [0] * 4)
+    icre = init_icre(alphas, [math.sqrt(2)] * 4)
     # ICR on one side of the robot frame between wheels 1 and 2
     q = np.array(
         [
@@ -169,14 +163,13 @@ def test_estimate_lambda_under_uncertainty():
         ]
     )
     q = fuzz_q(q)
-    desired_lmda = c2l(-1, 0).T
     lmda_e = icre.estimate_lmda(q)
     closeness = qua(icre, icre.S(lmda_e), q)
     assert closeness > req_closeness
 
 
 def test_joint_space_conversion():
-    icre = init_icre([math.pi / 4], [1], [0])
+    icre = init_icre([math.pi / 4], [1])
     lmda = np.array([0, 0, -1]).reshape(-1, 1)
     beta_target = np.array([0]).reshape(-1, 1)
     assert np.allclose(beta_target, icre.S(lmda))
@@ -187,7 +180,7 @@ def test_joint_space_conversion():
     # square robot with side length of 2 to make calculations simpler
     alpha = math.pi / 4
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
-    icre = init_icre(alphas, [math.sqrt(2)] * 4, [0] * 4)
+    icre = init_icre(alphas, [math.sqrt(2)] * 4)
 
     icr = np.array([-1, 0, 1]).reshape(-1, 1)
     lmda = icr * 1 / np.linalg.norm(icr)
@@ -204,7 +197,7 @@ def test_joint_space_conversion():
 
 def test_solve():
     # for now, check only for runtime errors until compute_derivatives works
-    icre = init_icre([math.pi / 4, -math.pi / 4, math.pi], [1, 1, 1], [0, 0, 0])
+    icre = init_icre([math.pi / 4, -math.pi / 4, math.pi], [1, 1, 1])
     lmda = np.array([0, -1, 0]).reshape(-1, 1)
     S_u = np.array([1 / math.sqrt(2), 1 / math.sqrt(2), 0])
     S_v = np.array([0, 0, 1])
@@ -216,14 +209,14 @@ def test_solve():
 def test_compute_derivatives():
     # for now, check only for runtime errors
     icre = init_icre(
-        [0, math.pi / 2, math.pi, math.pi * 3 / 4], [1, 1, 1, 1], [0, 0, 0, 0]
+        [0, math.pi / 2, math.pi, math.pi * 3 / 4], [1, 1, 1, 1]
     )
     lmda = np.array([0, 0, -1]).reshape(-1, 1)
     S_u, S_v, S_w = icre.compute_derivatives(lmda)
 
 
 def test_handle_singularities():
-    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1], [0, 0, 0])
+    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1])
     # icr on wheel 0 on the R^2 plane
     icr = np.array([1, 0, 1]).reshape(-1, 1)
     lmda = icr * 1 / np.linalg.norm(icr)
@@ -238,7 +231,7 @@ def test_handle_singularities():
 
 
 def test_update_parameters():
-    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1], [0, 0, 0])
+    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1])
     q = np.array([[0],[0],[0]])  # ICR on the robot's origin
     desired_lmda = np.array([[0], [0], [1]])
     u, v = -0.7, -0.7  # ICR estimate both negative
@@ -253,7 +246,7 @@ def test_update_parameters():
 
 
 def test_select_starting_points():
-    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1], [0, 0, 0])
+    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1])
     q = np.array([[0]]*3)  # ICR on the robot's origin
     desired_lmda = np.array([[0], [0], [-1]])
     starting_points = icre.select_starting_points(q)
@@ -284,7 +277,7 @@ def test_select_starting_points():
     # test case from the simulator
     alpha = math.pi / 4
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
-    icre = init_icre(alphas, [1] * 4, [0] * 4)
+    icre = init_icre(alphas, [1] * 4)
 
     q = np.array([[0], [0], [math.pi], [math.pi]])
     desired_lmda = np.array([[0], [0], [1]])
@@ -297,7 +290,7 @@ def test_select_starting_points():
     # Another square robot with side length of 2 to make calculations simpler
     alpha = math.pi / 4
     alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
-    icre = init_icre(alphas, [math.sqrt(2)] * 4, [0] * 4)
+    icre = init_icre(alphas, [math.sqrt(2)] * 4)
     # Two wheels are pointing in the same direction (the lines between them are co-linear), the other
     # two perpendiculars meet at a point halfway between the first two wheel. - currently failing
     q = np.array(
@@ -319,18 +312,16 @@ def test_select_starting_points():
 
 def test_shortest_distance():
     from swervedrive.icr.estimator import shortest_distance
+
     def check_aligned(a, b):
         assert abs(a.dot(b)[0,0]/(np.linalg.norm(a)*np.linalg.norm(b))) - 1 < tolerance
     # S_lmda on robot origin
-    alpha = math.pi / 4  # 45 degrees
-    alphas = [alpha, math.pi - alpha, -math.pi + alpha, -alpha]
     q = np.array([[2 * math.pi], [7 * math.pi], [math.pi / 2], [math.pi]])
-    icre = init_icre(alphas, [1] * 4, q)
     S_lmda = np.array([0] * 4)
     check_aligned(shortest_distance(q, S_lmda),
-        np.array([[0], [0], [-math.pi / 2], [0]]).T)
+                  np.array([[0], [0], [-math.pi / 2], [0]]).T)
 
     q = np.array([[-2 * math.pi], [-7 * math.pi], [-math.pi / 2], [-math.pi]])
     S_lmda = np.array([[0]] * 4)
     check_aligned(shortest_distance(q, S_lmda),
-        np.array([[0], [0], [-math.pi / 2], [0]]).T)
+                  np.array([[0], [0], [-math.pi / 2], [0]]).T)

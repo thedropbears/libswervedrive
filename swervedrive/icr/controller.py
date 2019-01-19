@@ -61,7 +61,7 @@ class Controller:
         self.phi_dot_bounds = phi_dot_bounds
         self.phi_2dot_bounds = phi_2dot_bounds
 
-        self.icre = Estimator(epsilon_init, self.alpha, self.l, self.b)
+        self.icre = Estimator(epsilon_init, self.alpha, self.l)
 
         self.kinematic_model = KinematicModel(
             self.alpha, self.l, self.b, self.r, k_beta=40

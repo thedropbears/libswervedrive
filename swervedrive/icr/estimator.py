@@ -14,51 +14,38 @@ class Estimator:
     def __init__(
         self,
         epsilon_init: np.ndarray,
-        modules_alpha: np.ndarray,
-        modules_l: np.ndarray,
-        modules_b: np.ndarray,
+        alpha: np.ndarray,
+        l: np.ndarray,
     ):
         """
         Initialize the Estimator object. The order in the following arrays
         must be preserved throughout all arguments passed to this object.
         :param epsilon_init: the starting position estimate for the robot
             position. Form (x, y, theta)^T.
-        :param modules_alpha: array containing the angle to each of the modules,
+        :param alpha: array containing the angle to each of the modules,
             measured counter clockwise from the x-axis.
-        :param modules_l: distance to the axis of rotation of each module from
+        :param l: distance to the axis of rotation of each module from
             the origin of the chassis frame
-        :param modules_b: distance from the axis of rotation of each module to
-            it's contact with the ground.
         """
+
+        assert len(alpha.shape) == 2 and alpha.shape[1] == 1, alpha
+        assert len(l.shape) == 2 and l.shape[1] == 1, l
 
         self.epsilon = epsilon_init
 
-        self.alpha = modules_alpha
-        self.l = modules_l
-        self.b = modules_b
-        self.n_modules = len(self.alpha)
+        self.alpha = alpha
+        self.l = l
+        self.n = len(self.alpha)
         self.epsilon_init = epsilon_init
 
-        self.a = np.zeros(shape=(3, self.n_modules))
-        self.a_orth = np.zeros(shape=(3, self.n_modules))
-        self.s = np.zeros(shape=(3, self.n_modules))
-        self.l_v = np.zeros(shape=(3, self.n_modules))
-        for i in range(self.n_modules):
-            self.a[:, i] = np.array(
-                [math.cos(self.alpha[i]), math.sin(self.alpha[i]), 0]
-            )
-            self.a_orth[:, i] = np.array(
-                [-math.sin(self.alpha[i]), math.cos(self.alpha[i]), 0]
-            )
-            self.s[:, i] = np.array(
-                [
-                    self.l[i] * math.cos(self.alpha[i]),
-                    self.l[i] * math.sin(self.alpha[i]),
-                    1,
-                ]
-            )
-            self.l_v[:, i] = np.array([0, 0, self.l[i]])
-        self.flipped = [None] * self.n_modules
+        self.a = np.concatenate([np.cos(alpha).T, np.sin(alpha).T, [[0.0] * self.n]])
+        self.a_orth = np.concatenate([-np.sin(alpha).T, np.cos(alpha).T, [[0.0] * self.n]])
+        self.s = np.concatenate(
+            [(l * np.cos(alpha)).T, (l * np.sin(alpha)).T, [[1.0] * self.n]]
+        )
+        self.l_v = np.concatenate([[[0.0] * self.n], [[0.0] * self.n], self.l.T])
+
+        self.flipped = [None] * self.n
 
     def estimate_lmda(self, q: np.ndarray):
         """
@@ -143,8 +130,8 @@ class Estimator:
             s = column(self.s, i).reshape(-1)
             d = np.array(
                 [
-                    math.cos(q[i, 0] + self.alpha[i]),
-                    math.sin(q[i, 0] + self.alpha[i]),
+                    math.cos(q[i, 0] + self.alpha[i,0]),
+                    math.sin(q[i, 0] + self.alpha[i,0]),
                     0,
                 ]
             )
@@ -152,9 +139,9 @@ class Estimator:
             p /= np.linalg.norm(p)
             return p
 
-        for i in range(self.n_modules):
+        for i in range(self.n):
             p_1 = get_p(i)
-            for j in range(self.n_modules):
+            for j in range(self.n):
                 if not i > j:
                     continue
                 p_2 = get_p(j)
@@ -185,8 +172,8 @@ class Estimator:
         """
         assert len(lmda.shape) == 2 and lmda.shape[1] == 1, lmda
         # Define the two working axes as m and n
-        S_m = np.zeros(shape=(self.n_modules,))
-        S_n = np.zeros(shape=(self.n_modules,))
+        S_m = np.zeros(shape=(self.n,))
+        S_n = np.zeros(shape=(self.n,))
         lmda = lmda.reshape(3)  # computations require lambda as a row vector
 
         # Work out the best hemisphere to work in
@@ -208,7 +195,7 @@ class Estimator:
             dm = np.array([[1, 0, -lmda[0] / lmda[2]]])
             dn = np.array([[0, 1, -lmda[1] / lmda[2]]])
 
-        for i in range(self.n_modules):
+        for i in range(self.n):
             # equations 16 and 17 in the paper
             a = column(self.a, i).reshape(3)
             a_orth = column(self.a_orth, i).reshape(3)
@@ -378,7 +365,7 @@ class Estimator:
         """
         assert len(lmda.shape) == 2 and lmda.shape[1] == 1, lmda
         wheel_number = None
-        for i in range(self.n_modules):
+        for i in range(self.n):
             # equations 16 and 17 in the paper
             s = column(self.s, i)
             if np.allclose(lmda, s / np.linalg.norm(s)):
@@ -394,8 +381,8 @@ class Estimator:
         :returns: row vector expressing the point.
         """
         assert len(lmda.shape) == 2 and lmda.shape[1] == 1, lmda
-        S = np.zeros(shape=(self.n_modules,))
-        for i in range(self.n_modules):
+        S = np.zeros(shape=(self.n,))
+        for i in range(self.n):
             # equations 16 and 17 in the paper
             a = column(self.a, i)
             a_orth = column(self.a_orth, i)
