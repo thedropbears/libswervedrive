@@ -49,11 +49,17 @@ class Controller:
         :param phi_2dot_bounds: Min/max allowable value for the angular
             acceleration of the module wheels, in rad/s^2.
         """
+
+        assert len(modules_alpha.shape) == 2 and modules_alpha.shape[1] == 1, modules_alpha
+        assert len(modules_l.shape) == 2 and modules_l.shape[1] == 1, modules_l
+        assert len(modules_b.shape) == 2 and modules_b.shape[1] == 1, modules_b
+        assert len(modules_r.shape) == 2 and modules_r.shape[1] == 1, modules_r
+
         # TODO: reshape these to column vectors
-        self.alpha = np.array(modules_alpha).reshape(-1)
-        self.l = np.array(modules_l).reshape(-1)
-        self.b = np.array(modules_b).reshape(-1)
-        self.r = np.array(modules_r).reshape(-1)
+        self.alpha = np.array(modules_alpha)
+        self.l = np.array(modules_l)
+        self.b = np.array(modules_b)
+        self.r = np.array(modules_r)
         self.n_modules = len(self.alpha)
         self.beta_bounds = beta_bounds
         self.beta_dot_bounds = beta_dot_bounds
@@ -181,12 +187,8 @@ class Controller:
         assert len(phi_2dot.shape) == 2 and phi_2dot.shape[0] == self.n_modules, phi_2dot
         assert len(beta_e.shape) == 2 and beta_e.shape[0] == self.n_modules, beta_e
 
-        # TODO: change back to using class variables once they are the correct shape
-        b = np.reshape(self.b, (-1, 1))
-        r = np.reshape(self.r, (-1, 1))
-
-        phi_dot_c = (phi_dot - np.multiply(np.divide(b, r), beta_dot)) + (
-            phi_2dot - np.multiply(np.divide(b, r), beta_2dot)
+        phi_dot_c = (phi_dot - np.multiply(np.divide(self.b, self.r), beta_dot)) + (
+            phi_2dot - np.multiply(np.divide(self.b, self.r), beta_2dot)
         ) * delta_t  # 40b
         # Check limits
         fd = 1.0  # scaling factor

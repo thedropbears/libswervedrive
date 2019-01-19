@@ -84,7 +84,7 @@ def test_structural_singularity_command():
     lmda_d_normal = np.array([[1], [0], [0]])
 
     lmda_singularity = cartesian_to_lambda(
-        c.l[0] * math.sin(c.alpha[0]), c.l[1] * math.sin(c.alpha[1])
+        c.l[0,0] * math.sin(c.alpha[0,0]), c.l[1,0] * math.sin(c.alpha[1,0])
     )
 
     mu_d = 0.1
