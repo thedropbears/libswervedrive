@@ -35,27 +35,35 @@ class KinematicModel:
         :param r: radii of wheels (m).
         :param k_beta: the gain for wheel reconfiguration.
         """
+
+        assert len(alpha.shape) == 2 and alpha.shape[1] == 1, alpha
+        assert len(l.shape) == 2 and l.shape[1] == 1, l
+        assert len(b.shape) == 2 and b.shape[1] == 1, b
+        assert len(r.shape) == 2 and r.shape[1] == 1, r
+
         self.alpha = alpha
+        self.b = b
+        self.r = r
+        self.l = l
+
         n = len(alpha)
         self.n_modules = n
         self.k_beta = k_beta
         self.r = np.reshape(r, (n, 1))
 
-        self.a = np.array([np.cos(alpha), np.sin(alpha), [0.0] * n])
-        self.a_orth = np.array([-np.sin(alpha), np.cos(alpha), [0.0] * n])
-        self.s = np.array(
-            [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha)), [1.0] * n]
+        self.a = np.concatenate([np.cos(alpha).T, np.sin(alpha).T, [[0.0] * n]])
+        self.a_orth = np.concatenate([-np.sin(alpha).T, np.cos(alpha).T, [[0.0] * n]])
+        self.s = np.concatenate(
+            [(l * np.cos(alpha)).T, (l * np.sin(alpha)).T, [[1.0] * n]]
         )
-        self.b = np.reshape(b, (n, 1))
-        self.l = np.reshape(l, (n, 1))
-        self.b_vector = np.array([[0.0] * n, [0.0] * n, b])
-        self.l_vector = np.array([[0.0] * n, [0.0] * n, l])
+        self.b_vector = np.concatenate([[[0.0] * n], [[0.0] * n], self.b.T])
+        self.l_vector = np.concatenate([[[0.0] * n], [[0.0] * n], self.l.T])
         self.state = KinematicModel.State.STOPPING
 
         self.xi = np.array([[0.0]] * 3)  # Odometry
 
-        singularities_cartesian = np.array(
-            [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha))]
+        singularities_cartesian = np.concatenate(
+            [(l * np.cos(alpha)).T, (l * np.sin(alpha)).T]
         ).T
         singularities_lmda = np.array(
             [
@@ -128,6 +136,7 @@ class KinematicModel:
 
         lmda = np.reshape(lmda, (-1, 1))
         _, s_perp_2 = self.s_perp(lmda)
+        # TODO: change this line
         f_lmda = (self.r / (s_perp_2 - self.b_vector).T.dot(lmda)).reshape(-1)
         return f_lmda * phi_dot
 
@@ -159,9 +168,6 @@ class KinematicModel:
                 # We are stopped, so we can reconfigure
                 self.state = KinematicModel.State.RECONFIGURING
 
-        lmda = np.reshape(lmda, (-1, 1))
-        lmda_dot = np.reshape(lmda_dot, (-1, 1))
-        lmda_2dot = np.reshape(lmda_2dot, (-1, 1))
         s1_lmda, s2_lmda = self.s_perp(lmda)
 
         denom = s2_lmda.T.dot(lmda)
@@ -169,6 +175,8 @@ class KinematicModel:
         # Set the corresponding beta_prime and beta_2prime to 0
         denom[denom == 0] = 1e20
         beta_prime = -(s1_lmda.T.dot(lmda_dot)) / denom
+
+        assert beta_prime.shape == (self.n_modules, 1)
 
         beta_2prime = (
             -(
@@ -178,11 +186,15 @@ class KinematicModel:
             / denom
         )
 
+        assert beta_2prime.shape == (self.n_modules, 1)
+
         phi_dot = np.divide(
             (s2_lmda - self.b_vector).T.dot(lmda) * mu
             - np.multiply(self.b, beta_prime),
             self.r,
         )
+
+        assert phi_dot.shape == (self.n_modules, 1)
 
         phi_dot_prime = np.divide(
             (
@@ -193,6 +205,8 @@ class KinematicModel:
             ),
             self.r,
         )
+
+        assert phi_dot_prime.shape == (self.n_modules, 1)
 
         return (
             np.reshape(beta_prime, (-1, 1)),
@@ -270,6 +284,9 @@ class KinematicModel:
         return mu
 
     def s_perp(self, lmda: np.ndarray):
+
+        assert lmda.shape == (3,1), lmda
+
         s = np.dot(self.a_orth.T, lmda)
         c = np.dot((self.a - self.l_vector).T, lmda)
         s1_lmda = (
@@ -278,4 +295,8 @@ class KinematicModel:
         s2_lmda = (
             np.multiply(c, (self.a - self.l_vector).T) + np.multiply(s, self.a_orth.T)
         ).T
+
+        assert s1_lmda.shape == (3, self.n_modules)
+        assert s2_lmda.shape == (3, self.n_modules)
+
         return s1_lmda, s2_lmda
