@@ -45,8 +45,6 @@ class Estimator:
         )
         self.l_v = np.concatenate([[[0.0] * self.n], [[0.0] * self.n], self.l.T])
 
-        self.flipped = [None] * self.n
-
     def estimate_lmda(self, q: np.ndarray):
         """
         Find the ICR given the steering angles.
@@ -109,8 +107,16 @@ class Estimator:
                     if found:
                         break
             if found:
-                return lmda.reshape(-1, 1)
-        return closest_lmda.reshape(-1, 1)
+                lmda = lmda.reshape(-1, 1)
+                # Always return lamdba with a positive w component
+                if lmda[2,0] < 0:
+                    lmda = -lmda
+                return lmda
+        lmda = closest_lmda.reshape(-1, 1)
+        # Always return lamdba with a positive w component
+        if lmda[2,0] < 0:
+            lmda = -lmda
+        return lmda
 
     def select_starting_points(self, q: np.ndarray):
         """
@@ -146,7 +152,7 @@ class Estimator:
                     continue
                 p_2 = get_p(j)
                 c = np.cross(p_1, p_2).reshape(-1, 1)
-                if p_1.dot(p_2) / np.linalg.norm(p_1) * np.linalg.norm(p_2) == 1:
+                if abs(p_1.dot(p_2) / np.linalg.norm(p_1) * np.linalg.norm(p_2)) > 0.99:
                     # the sine of the dot product is zero i.e. they are co-linear:
                     # Throwout cases where the two wheels being compared are co-linear
                     continue
@@ -180,13 +186,13 @@ class Estimator:
         u = lmda.dot(np.array([1, 0, 0]))
         v = lmda.dot(np.array([0, 1, 0]))
         w = lmda.dot(np.array([0, 0, 1]))
-        dot_products = [abs(u), abs(v), abs(w)]
-        axis = dot_products.index(max(dot_products))
-        if axis == 0:
+        dots = {'u': abs(u), 'v': abs(v), 'w': abs(w)}
+        axis = max(dots.keys(), key=(lambda k: dots[k]))
+        if axis == 'u':
             # Parameterise u
             dm = np.array([[-lmda[1] / lmda[0], 1, 0]])
             dn = np.array([[-lmda[2] / lmda[0], 0, 1]])
-        elif axis == 1:
+        elif axis == 'v':
             # Parameterise v
             dm = np.array([[1, -lmda[0] / lmda[1], 0]])
             dn = np.array([[0, -lmda[2] / lmda[1], 1]])
@@ -214,11 +220,11 @@ class Estimator:
             beta_n = dn.dot(gamma_top) / gamma_bottom
             S_m[i] = beta_m
             S_n[i] = beta_n
-        if axis == 0:
+        if axis == 'u':
             return None, S_m, S_n
-        if axis == 1:
+        if axis == 'v':
             return S_m, None, S_n
-        if axis == 2:
+        if axis == 'w':
             return S_m, S_n, None
 
     def solve(

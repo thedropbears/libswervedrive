@@ -2,11 +2,15 @@ import numpy as np
 import math
 import pytest
 from swervedrive.icr import Estimator
+from swervedrive.icr.estimator import shortest_distance
 from swervedrive.icr.kinematicmodel import cartesian_to_lambda as c2l
 
+from hypothesis import given, example
+from hypothesis import strategies as st
+from hypothesis.extra.numpy import arrays
 
 global tolerance
-tolerance = 0.05
+tolerance = 0.01
 
 
 def init_icre(alphas, ls):
@@ -17,26 +21,7 @@ def init_icre(alphas, ls):
     return icre
 
 
-def fuzz_q(q):
-    q += (np.random.random_sample(q.shape) * 2 - 1) * 5 / 180 * math.pi
-    return q
-
-
-def m(icre, beta, q):
-    # Metric defined in Section 4.1
-    diff = icre.flip_wheel(q, beta)
-    m = diff.dot(diff) / (len(diff) * math.pi ** 2)
-    return m
-
-
-def qua(icre, beta, q):
-    # Metric defined in Section 4.1
-    f = 500  # Chosen in the paper
-    qua = 1 - math.log(f * m(icre, beta, q) + 1) / math.log(f + 1)
-    return qua
-
-
-def test_estimate_lambda():
+def test_estimate_lambda_manual():
     icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1])
 
     q = np.array([[0],[0],[0]])  # ICR on the robot's origin
@@ -100,72 +85,37 @@ def test_estimate_lambda():
     # lmda_e = icre.estimate_lmda(q)
     # assert np.allclose(desired_lmda, lmda_e.T, atol=tolerance)
 
-
-@pytest.mark.skip("Closeness calculations not quite working yet")
-def test_estimate_lambda_under_uncertainty():
-    # Previous tests with not-quite-converged q values
-    req_closeness = 0.90
+@given(
+        lmda=arrays(np.float, (1,3), elements=st.floats(min_value=0, max_value=1)),
+        lmda_sign=st.floats(min_value=-1, max_value=1))
+@example(lmda=np.array([[0.89442719, 0.0, 0.4472136]]), lmda_sign=-0.0)
+def test_estimate_lambda(lmda, lmda_sign):
     icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1])
-
-    q = np.zeros(shape=(3,))  # ICR on the robot's origin
-    q = fuzz_q(q)
+    if np.linalg.norm(lmda) == 0:
+        return
+    lmda = (lmda / np.linalg.norm(lmda)).reshape(-1, 1)
+    lmda_signed = math.copysign(1, lmda_sign) * lmda
+    q = icre.S(lmda_signed)
     lmda_e = icre.estimate_lmda(q)
-    closeness = qua(icre, icre.S(lmda_e), q)
-    assert closeness > req_closeness
+    assert abs(lmda.T.dot(lmda_e)) > 1-tolerance, "Actual: %s\nEstimate: %s\nBetas: %s" % (lmda, lmda_e, q)
 
-    q = np.array([math.pi / 4, 0, -math.pi / 4])
-    q = fuzz_q(q)
+@given(
+        lmda=arrays(np.float, (1,3), elements=st.floats(min_value=0, max_value=1)),
+        lmda_sign=st.floats(min_value=-1, max_value=1),
+        errors=arrays(np.float, (1,3), elements=st.floats(min_value=-math.pi*2/180,
+            max_value=math.pi*2/180))
+        )
+def test_estimate_lambda_under_uncertainty(lmda, lmda_sign, errors):
+    icre = init_icre([0, math.pi / 2, math.pi], [1, 1, 1])
+    if np.linalg.norm(lmda) == 0:
+        return
+    lmda = (lmda / np.linalg.norm(lmda)).reshape(-1, 1)
+    lmda_signed = math.copysign(1, lmda_sign) * lmda
+    q = icre.S(lmda_signed) + errors.reshape(-1,1)
     lmda_e = icre.estimate_lmda(q)
-    closeness = qua(icre, icre.S(lmda_e), q)
-    assert closeness > req_closeness
-
-    # driving along the y axis
-    q = np.array([0, math.pi / 2, 0])
-    q = fuzz_q(q)
-    # so the ICR should be on the U axis
-    lmda_e = icre.estimate_lmda(q)
-    closeness = qua(icre, icre.S(lmda_e), q)
-    assert closeness > req_closeness
-
-    # A square robot with 4 wheels, one at each corner, the difference between each
-    # alpha value is pi/4 and the distance from the centre of the robot to each module
-    # is the same
-    alphas = np.arange(4) * math.pi / 2
-    icre = init_icre(alphas, [1] * 4)
-
-    # test case from the simulator
-    q = np.array([0.0, 0.0, math.pi, math.pi])
-    q = fuzz_q(q)
-    lmda_e = icre.estimate_lmda(q)
-    closeness = qua(icre, icre.S(lmda_e), q)
-    assert closeness > req_closeness
-
-    # ICR on a wheel, should be a singularity
-    q = np.array([-math.pi / 4, 0, math.pi / 4, 0])
-    q = fuzz_q(q)
-    lmda_e = icre.estimate_lmda(q)
-    closeness = qua(icre, icre.S(lmda_e), q)
-    assert closeness > req_closeness
-    singularity, wheel = icre.handle_singularities(lmda_e)
-    # assert singularity
-    # assert wheel == 1
-
-    # Another square robot with side length of 2 to make calculations simpler
-    alphas += math.pi / 4
-    icre = init_icre(alphas, [math.sqrt(2)] * 4)
-    # ICR on one side of the robot frame between wheels 1 and 2
-    q = np.array(
-        [
-            -(math.atan(2 / 1) - math.pi / 4),
-            -math.pi / 4,
-            math.pi / 4,
-            math.atan(2 / 1) - math.pi / 4,
-        ]
-    )
-    q = fuzz_q(q)
-    lmda_e = icre.estimate_lmda(q)
-    closeness = qua(icre, icre.S(lmda_e), q)
-    assert closeness > req_closeness
+    q_e = icre.S(lmda_e)
+    d = shortest_distance(q, q_e)
+    assert np.isclose(d, 0, atol=math.pi*2/180).all(), "Actual: %s\nEstimate: %s\nBeta errors: %s" % (lmda, lmda_e, errors/math.pi*180)
 
 
 def test_joint_space_conversion():
