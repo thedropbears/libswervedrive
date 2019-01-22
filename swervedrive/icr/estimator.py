@@ -303,7 +303,10 @@ class Estimator:
             delta_n = delta_w
 
             def lmda_t(m, n):
-                return np.array([[(1 - m ** 2 - n ** 2) ** 0.5], [m], [n]])  # Eq 4
+                # We normalise here so that we don't get floating point errors
+                residual = max(1 - m**2 - n**2, 0.0)
+                unnormed = np.array([[residual ** 0.5], [m], [n]])  # Eq 4
+                return unnormed / np.linalg.norm(unnormed)
 
         elif delta_v is None:
             m = lmda[0, 0]
@@ -312,7 +315,10 @@ class Estimator:
             delta_n = delta_w
 
             def lmda_t(m, n):
-                return np.array([[m], [(1 - m ** 2 - n ** 2) ** 0.5], [n]])  # Eq 4
+                # We normalise here so that we don't get floating point errors
+                residual = max(1 - m**2 - n**2, 0.0)
+                unnormed = np.array([[m], [residual ** 0.5], [n]])  # Eq 4
+                return unnormed / np.linalg.norm(unnormed)
 
         else:
             m = lmda[0, 0]
@@ -321,7 +327,10 @@ class Estimator:
             delta_n = delta_v
 
             def lmda_t(m, n):
-                return np.array([[m], [n], [(1 - m ** 2 - n ** 2) ** 0.5]])  # Eq 4
+                # We normalise here so that we don't get floating point errors
+                residual = max(1 - m**2 - n**2, 0.0)
+                unnormed = np.array([[m], [n], [residual ** 0.5]])  # Eq 4
+                return unnormed / np.linalg.norm(unnormed)
 
         prev_m = m
         prev_n = n
