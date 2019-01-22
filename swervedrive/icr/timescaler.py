@@ -61,7 +61,12 @@ class TimeScaler:
                 dbeta[i,0], d2beta[i,0], s_dot_u)
             s_2dot_l = max(s_2dot_l, s2dl)
             s_2dot_u = min(s_2dot_u, s2du)
-
+        assert 0 <= s_dot_l <= 1
+        assert 0 <= s_dot_u <= 1
+        assert 0 <= s_2dot_l <= 1
+        assert 0 <= s_2dot_u <= 1
+        assert s_dot_l <= s_dot_u
+        assert s_2dot_l <= s_2dot_u
         return s_dot_l, s_dot_u, s_2dot_l, s_2dot_u
 
     def compute_module_s_dot_bounds(
@@ -147,6 +152,10 @@ class TimeScaler:
         :param s_2dot_l: second derivative of parameter s, lower bound.
         :param s_2dot_u: second derivative of parameter s, upper bound.
         """
+        assert s_dot_u > 0
+        assert s_2dot_u > 0
+        assert s_dot_u > s_dot_l
+        assert s_2dot_u > s_2dot_l
         self.s_dot = s_dot_u
         self.s_2dot = s_2dot_u
 
