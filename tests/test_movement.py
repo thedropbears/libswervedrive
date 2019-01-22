@@ -31,19 +31,21 @@ def twist_to_icr(vx: float, vy: float, vz: float):
 @settings(deadline=1000)
 def test_sequential_direction_movement(twist_segments):
     c = unlimited_rotation_controller(
-        [-0.5, 0.5], [-1e-6, 1e-6], [-1e-6, 1e-6], [-1e-6, 1e-6]
+        [-0.5, 0.5], [-1e1, 1e1], [-1e1, 1e1], [-1e1, 1e1]
     )
     dt = 1.0 / 20.0
     modules_beta = np.array([[0]] * 4) - c._beta_offsets
     modules_phi_dot = np.array([[0]] * 4)
 
+    delta_beta = modules_beta
     for segment in twist_segments:
         iterations = 0
-        while iterations < 50:
+        while iterations < 20 and np.linalg.norm(delta_beta) > 1e-3:
             lmda_d, mu_d = twist_to_icr(*segment)
             beta_cmd, phi_dot_cmd, xi_e = c.control_step(
                 modules_beta, modules_phi_dot, lmda_d, mu_d, dt
             )
+            delta_beta = beta_cmd - modules_beta
             modules_beta = beta_cmd
             modules_phi_dot = phi_dot_cmd
             iterations += 1

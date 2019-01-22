@@ -5,6 +5,8 @@ from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
+import pytest
+
 from .helpers import unlimited_rotation_controller, build_controller
 
 
@@ -33,10 +35,12 @@ def assert_velocity_bounds(c, delta_beta, phi_dot_cmd, dt):
     lmda_d_sign=st.floats(
         min_value=-1, max_value=1
     ),  # make this *float* to give uniform distribution
-    lower_bounds=st.lists(st.floats(-10, -1e-6), min_size=4, max_size=4),
-    upper_bounds=st.lists(st.floats(1e-6, 10), min_size=4, max_size=4),
+    lower_bounds=st.lists(st.floats(-1e-0, -1e-0), min_size=4, max_size=4),
+    upper_bounds=st.lists(st.floats(1e-0, 1e-0), min_size=4, max_size=4),
 )
 def test_respect_velocity_bounds(lmda_d, lmda_d_sign, lower_bounds, upper_bounds):
+    from swervedrive.icr.kinematicmodel import KinematicModel
+
     # could do this using st.builds but that does not provide a view into what
     # the values that caused the failure were which is useful for diagnosis
     c = build_controller(lower_bounds, upper_bounds)
@@ -46,20 +50,28 @@ def test_respect_velocity_bounds(lmda_d, lmda_d_sign, lower_bounds, upper_bounds
     iterations = 0
     modules_beta = np.array([[0]] * 4)
     modules_phi_dot = np.array([[0]] * 4)
-    lmda_d = (math.copysign(1, lmda_d_sign) * lmda_d / np.linalg.norm(lmda_d)).reshape(-1, 1)
+    lmda_d = (math.copysign(1, lmda_d_sign) * lmda_d / np.linalg.norm(lmda_d)).reshape(
+        -1, 1
+    )
 
     mu_d = 1.0
     dt = 0.1
 
     beta_prev = modules_beta
+    delta_beta = np.array([[1]] * 4)
     phi_dot_prev = modules_phi_dot
-    while iterations < 50:
+    beta_history = []
+    lmda_history = []
+    while iterations < 250 and np.linalg.norm(delta_beta) > 1e-6:
         beta_cmd, phi_dot_cmd, xi_e = c.control_step(
             beta_prev, phi_dot_prev, lmda_d, mu_d, dt
         )
+        assert c.kinematic_model.state == KinematicModel.State.RUNNING
 
         delta_beta = beta_cmd - beta_prev
         assert_velocity_bounds(c, delta_beta, phi_dot_cmd, dt)
+        beta_history.append(beta_cmd)
+        # lmda_history.append(c.icre.estimate_lmda(beta_cmd))
 
         beta_prev = beta_cmd
         phi_dot_prev = phi_dot_cmd
@@ -69,7 +81,10 @@ def test_respect_velocity_bounds(lmda_d, lmda_d_sign, lower_bounds, upper_bounds
     mu_e = c.kinematic_model.estimate_mu(phi_dot_prev, lmda_e)
     assert np.allclose(lmda_e, lmda_d, atol=1e-2) or np.allclose(
         -lmda_e, lmda_d, atol=1e-2
-    ), "Controller did not reach target"
+    ), (
+        "Controller did not reach target:\n%s\nactual: %s\nbeta history: %s\nlambda history: %s"
+        % (lmda_d, lmda_e, beta_history, lmda_history)
+    )
     assert np.isclose(mu_e, mu_d, atol=1e-2) or np.isclose(-mu_e, mu_d, atol=1e-2)
 
 
@@ -84,7 +99,7 @@ def test_structural_singularity_command():
     lmda_d_normal = np.array([[1], [0], [0]])
 
     lmda_singularity = cartesian_to_lambda(
-        c.l[0,0] * math.sin(c.alpha[0,0]), c.l[1,0] * math.sin(c.alpha[1,0])
+        c.l[0, 0] * math.sin(c.alpha[0, 0]), c.l[1, 0] * math.sin(c.alpha[1, 0])
     )
 
     mu_d = 0.1
