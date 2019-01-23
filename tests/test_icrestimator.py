@@ -115,7 +115,7 @@ def test_estimate_lambda_under_uncertainty(lmda, lmda_sign, errors):
     lmda_e = icre.estimate_lmda(q)
     q_e = icre.S(lmda_e)
     d = shortest_distance(q, q_e)
-    assert np.isclose(d, 0, atol=math.pi*2/180).all(), "Actual: %s\nEstimate: %s\nBeta errors: %s" % (lmda, lmda_e, errors/math.pi*180)
+    assert np.isclose(d, 0, atol=math.pi*4/180).all(), "Actual: %s\nEstimate: %s\nBeta errors: %s" % (lmda, lmda_e, errors/math.pi*180)
 
 
 def test_joint_space_conversion():
@@ -260,14 +260,14 @@ def test_select_starting_points():
     assert any(close)
 
 
-def test_shortest_distance():
+def test_shortest_distance_manual():
     from swervedrive.icr.estimator import shortest_distance
 
     def check_aligned(a, b):
         assert abs(a.dot(b)[0,0]/(np.linalg.norm(a)*np.linalg.norm(b))) - 1 < tolerance
     # S_lmda on robot origin
     q = np.array([[2 * math.pi], [7 * math.pi], [math.pi / 2], [math.pi]])
-    S_lmda = np.array([0] * 4)
+    S_lmda = np.array([[0]] * 4)
     check_aligned(shortest_distance(q, S_lmda),
                   np.array([[0], [0], [-math.pi / 2], [0]]).T)
 
@@ -275,3 +275,18 @@ def test_shortest_distance():
     S_lmda = np.array([[0]] * 4)
     check_aligned(shortest_distance(q, S_lmda),
                   np.array([[0], [0], [-math.pi / 2], [0]]).T)
+
+@given(
+        q1=arrays(np.float, (1,3), elements=st.floats(min_value=-math.pi/2, max_value=math.pi/2-0.01)),
+        q2=arrays(np.float, (1,3), elements=st.floats(min_value=-math.pi/2, max_value=math.pi/2-0.01)),
+)
+@example(q1=np.array([[0.01745329], [0.01745329], [0.01745329]]),
+        q2=np.array([[0],[0],[0]]))
+def test_shortest_distance(q1, q2):
+    from swervedrive.icr.estimator import shortest_distance
+    diff = shortest_distance(q1.reshape(-1,1), q2.reshape(-1,1))
+    assert all(diff <= math.pi/2)
+    assert all(diff >= -math.pi/2)
+    for qi, qj, d in zip(q1[:,0], q2[:,0], diff[:,0]):
+        if qi != qj:
+            assert d != 0, "q1: %s\nq2: %s\nshortest dist: %s" % (q1,q2,diff)

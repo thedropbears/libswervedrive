@@ -425,9 +425,10 @@ def shortest_distance(
         as the correct distance of q from S_lmda.
     """
     assert len(q.shape) == 2 and q.shape[1] == 1, q
+    assert len(S_lmda.shape) == 2 and S_lmda.shape[1] == 1, S_lmda
     # Iterate because we have to apply joint limits
     output = np.zeros(q.shape)
-    for joint, (qi, beta_i) in enumerate(zip(q[0], S_lmda)):
+    for joint, (qi, beta_i) in enumerate(zip(q[:,0], S_lmda[:,0])):
         if beta_bounds is not None:
             bounds = beta_bounds[joint]
         else:
