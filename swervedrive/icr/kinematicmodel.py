@@ -1,5 +1,8 @@
 from enum import Enum
+import math
 import numpy as np
+
+from swervedrive.icr.estimator import shortest_distance
 
 
 def cartesian_to_lambda(x, y):
@@ -32,40 +35,55 @@ class KinematicModel:
         :param r: radii of wheels (m).
         :param k_beta: the gain for wheel reconfiguration.
         """
+
+        assert len(alpha.shape) == 2 and alpha.shape[1] == 1, alpha
+        assert len(l.shape) == 2 and l.shape[1] == 1, l
+        assert len(b.shape) == 2 and b.shape[1] == 1, b
+        assert len(r.shape) == 2 and r.shape[1] == 1, r
+
         self.alpha = alpha
+        self.b = b
+        self.r = r
+        self.l = l
+
         n = len(alpha)
         self.n_modules = n
         self.k_beta = k_beta
         self.r = np.reshape(r, (n, 1))
 
-        self.a = np.array([np.cos(alpha), np.sin(alpha), [0.0] * n])
-        self.a_orth = np.array([-np.sin(alpha), np.cos(alpha), [0.0] * n])
-        self.s = np.array(
-            [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha)), [1.0] * n]
+        self.a = np.concatenate([np.cos(alpha).T, np.sin(alpha).T, [[0.0] * n]])
+        self.a_orth = np.concatenate([-np.sin(alpha).T, np.cos(alpha).T, [[0.0] * n]])
+        self.s = np.concatenate(
+            [(l * np.cos(alpha)).T, (l * np.sin(alpha)).T, [[1.0] * n]]
         )
-        self.b = np.reshape(b, (n, 1))
-        self.l = np.reshape(l, (n, 1))
-        self.b_vector = np.array([[0.0] * n, [0.0] * n, b])
-        self.l_vector = np.array([[0.0] * n, [0.0] * n, l])
+        self.b_vector = np.concatenate([[[0.0] * n], [[0.0] * n], self.b.T])
+        self.l_vector = np.concatenate([[[0.0] * n], [[0.0] * n], self.l.T])
         self.state = KinematicModel.State.STOPPING
 
-        self.xi = np.array([[0.0] * 3])  # Odometry
+        self.xi = np.array([[0.0]] * 3)  # Odometry
 
-        singularities_cartesian = np.array(
-            [np.multiply(l, np.cos(alpha)), np.multiply(l, np.sin(alpha))]
+        singularities_cartesian = np.concatenate(
+            [(l * np.cos(alpha)).T, (l * np.sin(alpha)).T]
         ).T
         singularities_lmda = np.array(
-            [cartesian_to_lambda(s[0], s[1]).reshape(-1)
-             for s in singularities_cartesian]
+            [
+                cartesian_to_lambda(s[0], s[1])
+                for s in singularities_cartesian
+            ]
         )
-        self.singularities = np.concatenate([
-            singularities_lmda,
-            -singularities_lmda
-        ])
+        self.singularities = np.concatenate([singularities_lmda, -singularities_lmda])
 
-    def compute_chassis_motion(self, lmda_d: np.ndarray, lmda_e: np.ndarray,
-                               mu_d: float, mu_e: float, k_b: float,
-                               phi_dot_bounds: float, k_lmda: float, k_mu: float):
+    def compute_chassis_motion(
+        self,
+        lmda_d: np.ndarray,
+        lmda_e: np.ndarray,
+        mu_d: float,
+        mu_e: float,
+        k_b: float,
+        phi_dot_bounds: float,
+        k_lmda: float,
+        k_mu: float,
+    ):
         """
         Compute the path to the desired state and implement control laws
         required to produce the motion.
@@ -81,6 +99,14 @@ class KinematicModel:
         :returns: (derivative of lmda, 2nd derivative of lmda, derivative of mu)
         """
 
+        assert lmda_d.shape == (3,1), lmda_d
+        assert lmda_e.shape == (3,1), lmda_e
+
+        # Because +lmda and -lmda are the same, we should choose the closest one
+        if lmda_d.T.dot(lmda_e) < 0:
+            lmda_d = -lmda_d
+            mu_d = -mu_d
+
         # bound mu based on the ph_dot constraits
         mu_min = max(self.compute_mu(lmda_d, phi_dot_bounds[0]))
         mu_max = min(self.compute_mu(lmda_d, phi_dot_bounds[1]))
@@ -88,31 +114,31 @@ class KinematicModel:
 
         # TODO: figure out what the tolerance should be
         on_singularity = any(
-            all(np.isclose(lmda_d, s, atol=1e-2))
-            for s in self.singularities
+            lmda_d.T.dot(s) >= 0.99 for s in self.singularities
         )
         if on_singularity:
             lmda_d = lmda_e
 
-        dlmda = k_b * k_lmda * (lmda_d - (lmda_e.dot(lmda_d)) * lmda_e)
+        dlmda = k_b * k_lmda * (lmda_d - (lmda_e.T.dot(lmda_d)) * lmda_e)
 
-        d2lmda = k_b ** 2 * k_lmda ** 2 * ((lmda_e.dot(lmda_d)) * lmda_d - lmda_e)
+        d2lmda = k_b ** 2 * k_lmda ** 2 * ((lmda_e.T.dot(lmda_d)) * lmda_d - lmda_e)
 
-        dmu = k_b * k_mu * (mu_d-mu_e)
+        dmu = k_b * k_mu * (mu_d - mu_e)
 
         return dlmda, d2lmda, dmu
 
-    def compute_mu(self, lmda, phi_dot):
+    def compute_mu(self, lmda: np.ndarray, phi_dot: float):
         """
         Compute mu given lmda and phi_dot (equation 25 of control paper).
         """
+
+        assert lmda.shape == (3,1), lmda
+
         lmda = np.reshape(lmda, (-1, 1))
         _, s_perp_2 = self.s_perp(lmda)
-        f_lmda = (
-            self.r
-            / (s_perp_2 - self.b_vector).T.dot(lmda)
-        ).reshape(-1)
-        return f_lmda*phi_dot
+        # TODO: change this line
+        f_lmda = (self.r / (s_perp_2 - self.b_vector).T.dot(lmda)).reshape(-1)
+        return f_lmda * phi_dot
 
     def compute_actuators_motion(
         self,
@@ -133,15 +159,15 @@ class KinematicModel:
             arrays: (beta_prime, beta_2prime, phi_dot, phi_dot_prime) (phi_dot is a already a time
             derivative as the relevant constraints are applied in the path planner).
         """
+        assert lmda.shape == (3,1), lmda
+        assert lmda_dot.shape == (3,1), lmda_dot
+        assert lmda_2dot.shape == (3,1), lmda_2dot
 
         if self.state == KinematicModel.State.STOPPING:
             if abs(mu) < 1e-3:
                 # We are stopped, so we can reconfigure
                 self.state = KinematicModel.State.RECONFIGURING
 
-        lmda = np.reshape(lmda, (-1, 1))
-        lmda_dot = np.reshape(lmda_dot, (-1, 1))
-        lmda_2dot = np.reshape(lmda_2dot, (-1, 1))
         s1_lmda, s2_lmda = self.s_perp(lmda)
 
         denom = s2_lmda.T.dot(lmda)
@@ -149,6 +175,8 @@ class KinematicModel:
         # Set the corresponding beta_prime and beta_2prime to 0
         denom[denom == 0] = 1e20
         beta_prime = -(s1_lmda.T.dot(lmda_dot)) / denom
+
+        assert beta_prime.shape == (self.n_modules, 1)
 
         beta_2prime = (
             -(
@@ -158,11 +186,15 @@ class KinematicModel:
             / denom
         )
 
+        assert beta_2prime.shape == (self.n_modules, 1)
+
         phi_dot = np.divide(
             (s2_lmda - self.b_vector).T.dot(lmda) * mu
             - np.multiply(self.b, beta_prime),
             self.r,
         )
+
+        assert phi_dot.shape == (self.n_modules, 1)
 
         phi_dot_prime = np.divide(
             (
@@ -174,11 +206,13 @@ class KinematicModel:
             self.r,
         )
 
+        assert phi_dot_prime.shape == (self.n_modules, 1)
+
         return (
-            np.reshape(beta_prime, (self.n_modules,)),
-            np.reshape(beta_2prime, (self.n_modules,)),
-            np.reshape(phi_dot, (self.n_modules,)),
-            np.reshape(phi_dot_prime, (self.n_modules,)),
+            np.reshape(beta_prime, (-1, 1)),
+            np.reshape(beta_2prime, (-1, 1)),
+            np.reshape(phi_dot, (-1, 1)),
+            np.reshape(phi_dot_prime, (-1, 1)),
         )
 
     def reconfigure_wheels(self, beta_d: np.ndarray, beta_e: np.ndarray):
@@ -191,9 +225,12 @@ class KinematicModel:
         :beta_e: array of measured beta values.
         :returns: Array of dbeta values.
         """
-        error = beta_d - beta_e
+        assert len(beta_d.shape) == 2 and beta_d.shape[1] == 1, beta_d
+        assert len(beta_e.shape) == 2 and beta_e.shape[1] == 1, beta_e
+
+        error = shortest_distance(beta_d, beta_e)
         dbeta = self.k_beta * error
-        if np.isclose(dbeta, 0, atol=1e-2).all():
+        if np.linalg.norm(error) < 1/180*math.pi * self.n_modules:  # degrees per module
             self.state = KinematicModel.State.RUNNING
         return dbeta
 
@@ -205,16 +242,19 @@ class KinematicModel:
         :param mu_e: estimate of the position of the robot about the ICR.
         :param delta_t: time since the odometry was last updated.
         """
-        xi_dot = mu_e * np.array([[lmda_e[1]], [-lmda_e[0]], [lmda_e[2]]])  # Eq (2)
-        theta = self.xi[0, 2]
+
+        assert lmda_e.shape == (3,1), lmda_e
+
+        xi_dot = (mu_e * np.array([lmda_e[1], -lmda_e[0], lmda_e[2]])).reshape(-1,1)  # Eq (2)
+        theta = self.xi[2, 0]
         m3 = np.array(
             [
-                [np.cos(theta), -np.sin(theta), 0],
-                [np.sin(theta), np.cos(theta), 0],
+                [math.cos(theta), -math.sin(theta), 0],
+                [math.sin(theta), math.cos(theta), 0],
                 [0, 0, 1],
             ]
         )
-        self.xi += np.matmul(m3, xi_dot).T * delta_t  # Eq (24)
+        self.xi += np.matmul(m3, xi_dot) * delta_t  # Eq (24)
         return self.xi
 
     def estimate_mu(self, phi_dot: np.ndarray, lmda_e):
@@ -224,6 +264,10 @@ class KinematicModel:
         :param lmda_e: the estimate of the ICR in h-space.
         :returns: the estimate of mu (float).
         """
+
+        assert len(phi_dot.shape) == 2 and phi_dot.shape[1] == 1, phi_dot
+        assert lmda_e.shape == (3,1), lmda_e
+
         # this requires solving equation (22) from the control paper, i think
         # we may need to look into whether this is valid for a system with no
         # wheel coupling
@@ -240,6 +284,9 @@ class KinematicModel:
         return mu
 
     def s_perp(self, lmda: np.ndarray):
+
+        assert lmda.shape == (3,1), lmda
+
         s = np.dot(self.a_orth.T, lmda)
         c = np.dot((self.a - self.l_vector).T, lmda)
         s1_lmda = (
@@ -248,4 +295,8 @@ class KinematicModel:
         s2_lmda = (
             np.multiply(c, (self.a - self.l_vector).T) + np.multiply(s, self.a_orth.T)
         ).T
+
+        assert s1_lmda.shape == (3, self.n_modules)
+        assert s2_lmda.shape == (3, self.n_modules)
+
         return s1_lmda, s2_lmda
