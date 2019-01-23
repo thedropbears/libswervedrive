@@ -9,6 +9,8 @@ import pytest
 
 from .helpers import unlimited_rotation_controller, build_controller
 
+from swervedrive.icr.estimator import shortest_distance
+
 
 def cartesian_to_lambda(x, y):
     return np.reshape(1 / np.linalg.norm([x, y, 1]) * np.array([x, y, 1]), (3, 1))
@@ -35,15 +37,14 @@ def assert_velocity_bounds(c, delta_beta, phi_dot_cmd, dt):
     lmda_d_sign=st.floats(
         min_value=-1, max_value=1
     ),  # make this *float* to give uniform distribution
-    lower_bounds=st.lists(st.floats(-1e-0, -1e-0), min_size=4, max_size=4),
-    upper_bounds=st.lists(st.floats(1e-0, 1e-0), min_size=4, max_size=4),
+    bounds=st.lists(st.floats(1e-1, 10), min_size=4, max_size=4),
 )
-def test_respect_velocity_bounds(lmda_d, lmda_d_sign, lower_bounds, upper_bounds):
+def test_respect_velocity_bounds(lmda_d, lmda_d_sign, bounds):
     from swervedrive.icr.kinematicmodel import KinematicModel
 
     # could do this using st.builds but that does not provide a view into what
     # the values that caused the failure were which is useful for diagnosis
-    c = build_controller(lower_bounds, upper_bounds)
+    c = build_controller([-b for b in bounds], bounds)  # Symmetric bounds
 
     # Modules can only rotate at a maximum of 0.5 rad/s
     # Make sure the controller respects these limits
@@ -53,8 +54,9 @@ def test_respect_velocity_bounds(lmda_d, lmda_d_sign, lower_bounds, upper_bounds
     lmda_d = (math.copysign(1, lmda_d_sign) * lmda_d / np.linalg.norm(lmda_d)).reshape(
         -1, 1
     )
+    q_d = c.icre.S(lmda_d)
 
-    mu_d = 1.0
+    mu_d = bounds[2] * c.r[0, 0] / c.l[0, 0] * 0.1  # 0.1 of max spot rotation
     dt = 0.1
 
     beta_prev = modules_beta
@@ -62,7 +64,13 @@ def test_respect_velocity_bounds(lmda_d, lmda_d_sign, lower_bounds, upper_bounds
     phi_dot_prev = modules_phi_dot
     beta_history = []
     lmda_history = []
-    while iterations < 250 and np.linalg.norm(delta_beta) > 1e-6:
+    mu_e = 0
+    lmda_e = c.icre.estimate_lmda(beta_prev)
+
+    while iterations < 50 and not (
+        np.isclose(shortest_distance(beta_prev, q_d), 0, atol=math.pi * 1 / 180).all()
+        and (np.isclose(mu_e, mu_d, atol=1e-2) or np.isclose(-mu_e, mu_d, atol=1e-2))
+    ):
         beta_cmd, phi_dot_cmd, xi_e = c.control_step(
             beta_prev, phi_dot_prev, lmda_d, mu_d, dt
         )
@@ -75,13 +83,15 @@ def test_respect_velocity_bounds(lmda_d, lmda_d_sign, lower_bounds, upper_bounds
 
         beta_prev = beta_cmd
         phi_dot_prev = phi_dot_cmd
+        lmda_e = c.icre.estimate_lmda(beta_prev)
+        mu_e = c.kinematic_model.estimate_mu(phi_dot_prev, lmda_e)
         iterations += 1
 
     lmda_e = c.icre.estimate_lmda(beta_prev)
     mu_e = c.kinematic_model.estimate_mu(phi_dot_prev, lmda_e)
-    assert np.allclose(lmda_e, lmda_d, atol=1e-2) or np.allclose(
-        -lmda_e, lmda_d, atol=1e-2
-    ), (
+    assert np.isclose(
+        shortest_distance(beta_prev, q_d), 0, atol=math.pi * 1 / 180
+    ).all(), (
         "Controller did not reach target:\n%s\nactual: %s\nbeta history: %s\nlambda history: %s"
         % (lmda_d, lmda_e, beta_history, lmda_history)
     )
@@ -125,3 +135,25 @@ def test_structural_singularity_command():
         beta_prev = beta_cmd
         phi_dot_prev = phi_dot_cmd
         iterations += 1
+
+
+def test_bad_s_2dot():
+    c = unlimited_rotation_controller(
+        [-0.5, 0.5], [-1e-6, 1e-6], [-1e-6, 1e-6], [-1e-6, 1e-6]
+    )
+
+    modules_beta = np.array([[0], [math.pi / 2], [0], [math.pi / 2]])
+    modules_phi_dot = np.array([[0]] * 4)
+
+    lmda_d = cartesian_to_lambda(0, 1e20)
+    mu_d = 1.0
+    dt = 0.1
+    beta_prev = modules_beta
+    phi_dot_prev = modules_phi_dot
+    iterations = 0
+    while iterations < 20:
+        beta_cmd, phi_dot_cmd, xi_e = c.control_step(
+            beta_prev, phi_dot_prev, lmda_d, mu_d, dt
+        )
+        beta_prev = beta_cmd
+        phi_dot_prev = phi_dot_cmd
